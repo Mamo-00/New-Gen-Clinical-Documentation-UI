@@ -2,7 +2,7 @@ import React from "react";
 import { CssBaseline, useColorScheme, IconButton, Box } from "@mui/material";
 import { ThemeProvider } from '@mui/material/styles'
 import { theme } from "./theme";
-import EditorComponent from "./components/EditorComponent";
+import Editor from "./components/Editor/Editor";
 import { Brightness4, Brightness7 } from "@mui/icons-material";
 
 const ColorModeToggle = () => {
@@ -39,7 +39,7 @@ const App: React.FC = () => {
         position: 'relative'
       }}>
         <ColorModeToggle />
-        <EditorComponent />
+        <Editor />
       </Box>
     </ThemeProvider>
   );
