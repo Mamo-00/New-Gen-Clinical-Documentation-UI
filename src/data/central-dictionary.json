@@ -1,3 +1,26 @@
 {
-  "terms": ["adenocarcinoma", "lymphoma", "neoplasm", "histology", "biopsy"]
+  "terms": [
+    "adenocarcinoma",
+    "lymphoma",
+    "neoplasm",
+    "histology",
+    "biopsy",
+    "diabetes",
+    "hypertension",
+    "asthma",
+    "anemia",
+    "chronic",
+    "cardiac",
+    "gastrointestinal",
+    "rheumatoid",
+    "vascular",
+    "tachycardia",
+    "osteoporosis",
+    "bronchitis",
+    "lymphatic",
+    "neurological",
+    "myocardial infarction",
+    "renal",
+    "hypotension"
+  ]
 }

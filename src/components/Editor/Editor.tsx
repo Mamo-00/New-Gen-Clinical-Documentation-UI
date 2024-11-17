@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Box, TextField } from "@mui/material";
-import useDictionaryManager from "../Dictionary/DictionaryManager";
+import { useDictionaryManager } from "../Dictionary/useDictionaryManager";
 import SuggestionsDropdown from "./SuggestionsDropdown";
 
 const Editor: React.FC = () => {
@@ -13,15 +13,25 @@ const Editor: React.FC = () => {
   });
   const [isDropdownVisible, setDropdownVisible] = useState(false);
 
+  // Utility function to get the last word typed
+  const getLastWord = (text: string): string => {
+    const words = text.trim().split(" ");
+    return words[words.length - 1]; // Return the last word
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInputValue(value);
 
-    // Get matching terms from the merged dictionary
-    if (value) {
+    // Get the last word being typed
+    const lastWord = getLastWord(value);
+
+    if (lastWord.length >= 3) {
+      // Get matching terms from the dictionary
       const matches = getMergedDictionary().filter((term) =>
-        term.toLowerCase().startsWith(value.toLowerCase())
+        term.toLowerCase().startsWith(lastWord.toLowerCase())
       );
+
       setSuggestions(matches);
 
       // Show dropdown if there are matches
@@ -31,12 +41,15 @@ const Editor: React.FC = () => {
       const rect = e.target.getBoundingClientRect();
       setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
     } else {
-      setDropdownVisible(false);
+      setDropdownVisible(false); // Hide dropdown if fewer than 3 characters
     }
   };
 
   const handleSelect = (term: string) => {
-    setInputValue(term); // Populate the input with the selected term
+    // Replace the last word with the selected suggestion
+    const words = inputValue.trim().split(" ");
+    words[words.length - 1] = term; // Replace the last word
+    setInputValue(words.join(" ") + " "); // Rebuild the input and add a space
     setDropdownVisible(false); // Hide dropdown
   };
 
