@@ -5,6 +5,12 @@
   text-align: center;
 }
 
+.highlighted-term {
+  background-color: yellow; /* Highlighted medical terms */
+  color: red;
+  font-weight: bold;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;
