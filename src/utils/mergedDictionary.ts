@@ -1,11 +1,5 @@
-// File: src/utils/dictionaryLoader.ts
-
 import { getFirestoreUserDictionary } from "./firestoreService";
 import centralDictionary from "../data/central-dictionary.json";
-
-// Define the Norwegian central dictionary as a static array
-// This dictionary contains common pathology terms in Norwegian
-
 
 /**
  * Load the central dictionary and merge it with the user's personal dictionary.

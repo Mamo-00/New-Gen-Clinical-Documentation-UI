@@ -1,72 +1,82 @@
-import React, { useEffect, useRef } from "react";
-import Quill from "quill";
-import "quill/dist/quill.snow.css";
-import { Mention as QuillMention } from "quill-mention";
-import "quill-mention/dist/quill.mention.css";
-import { useDictionaryManager } from "../Dictionary/useDictionaryManager";
+import React, { useEffect } from "react";
+import { TextField, Box } from "@mui/material";
+import Header from "../Header";
+import EditorFooter from "../EditorFooter";
+import EditorControls from "../Settings/EditorControls";
+import { useEditor } from "../../context/EditorContext";
 
-// Register the mention module with Quill
-Quill.register("modules/mention", QuillMention);
-
-// Define the props for Editor
-interface EditorProps {
-  autocompleteEnabled: boolean;
-  templateLogicEnabled: boolean;
-}
-
-const Editor: React.FC<EditorProps> = ({ autocompleteEnabled, templateLogicEnabled }) => {
-  const editorRef = useRef<HTMLDivElement | null>(null);
-  const { getMergedDictionary } = useDictionaryManager();
+const Editor: React.FC = () => {
+  const {
+    content,
+    setContent,
+    wordCount,
+    setWordCount,
+    lastSaved,
+    spellCheckEnabled,
+    editorRef,
+  } = useEditor();
 
   useEffect(() => {
-    if (!editorRef.current) return;
+    setWordCount(content.split(/\s+/).filter(Boolean).length);
+  }, [content]);
 
-    // Initialize Quill instance
-    const quill = new Quill(editorRef.current, {
-      theme: "snow",
-      modules: {
-        toolbar: false, // Disable toolbar for simplicity
-        mention: autocompleteEnabled
-          ? {
-              allowedChars: /^[A-Za-z\s]*$/,
-              mentionDenotationChars: [" "], // Trigger after a space
-              source: async (searchTerm: string, renderList: Function) => {
-                if (searchTerm.length < 3) return; // Trigger only after 3 characters
-
-                // Fetch merged dictionary and filter matches
-                const matches = getMergedDictionary().filter((term) =>
-                  term.toLowerCase().startsWith(searchTerm.toLowerCase())
-                );
-
-                // Render the list of matches
-                renderList(
-                  matches.map((term, index) => ({ id: index, value: term })), // Format suggestions
-                  searchTerm
-                );
-              },
-            }
-          : undefined, // Disable mention module if autocomplete is disabled
-      },
-    });
-
-    // Cleanup
-    return () => {
-      quill.off("text-change");
+  /* useEffect(() => {
+    const fetchUserDictionary = async () => {
+      const userId = "exampleUserId"; // Replace with actual user ID
+      const userDictionary = await getFirestoreUserDictionary(userId);
+      setCustomDictionary(userDictionary);
     };
-  }, [autocompleteEnabled, getMergedDictionary]);
+
+    fetchUserDictionary();
+  }, []); */
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setContent(e.target.value);
+  };
 
   return (
-    <div
-      ref={editorRef}
-      style={{
-        height: "300px",
-        width: "600px",
-        marginLeft: "auto",
-        marginRight: "auto",
-        marginTop: "20px",
-        border: templateLogicEnabled ? "2px solid #4caf50" : "1px solid #ccc", // Example: Highlight if template logic is enabled
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        width: "100%",
+        overflow: "hidden",
+        mx: "auto",
+        p: 1,
+        my: 1,
+        backgroundColor: "background.paper",
       }}
-    />
+    >
+      <Header />
+      <EditorControls />
+      <TextField
+        inputRef={editorRef}
+        sx={{
+          flex: 1, // Take remaining space
+          minHeight: 0, // Allow shrinking
+          "& .MuiInputBase-root": {
+            height: "100%",
+          },
+          "& .MuiInputBase-input": {
+            height: "100% !important",
+            overflow: "auto",
+          },
+          mb: 4,
+          border: 1,
+          borderRadius: 1,
+        }}
+        value={content}
+        onChange={handleContentChange}
+        spellCheck={spellCheckEnabled}
+        multiline
+        rows={12}
+        variant="outlined"
+        fullWidth
+      />
+
+      <EditorFooter wordCount={wordCount} lastSaved={lastSaved} />
+    </Box>
   );
 };
 

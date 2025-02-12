@@ -1,54 +1,80 @@
 import React, { useState } from "react";
-import { Box, Button, TextField, List, ListItem, IconButton, Typography } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
+import {
+  Button,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Box,
+} from "@mui/material";
+import { Add } from "@mui/icons-material";
+import { useDictionaryManager } from "./useDictionaryManager";
 
 interface DictionaryInputProps {
-  personalDictionary: string[];
-  onAddTerm: (term: string) => void;
-  onRemoveTerm: (term: string) => void;
+  showButtonText: boolean;
 }
 
 const DictionaryInput: React.FC<DictionaryInputProps> = ({
-  personalDictionary,
-  onAddTerm,
-  onRemoveTerm,
+  showButtonText,
 }) => {
-  const [newTerm, setNewTerm] = useState("");
+  const [showDictionary, setShowDictionary] = useState(false);
+  const [newWord, setNewWord] = useState("");
+  const [customDictionary, setCustomDictionary] = useState<string[]>([]);
+  const { addToPersonalDictionary } = useDictionaryManager();
 
-  const handleAdd = () => {
-    if (newTerm.trim()) {
-      onAddTerm(newTerm.trim());
-      setNewTerm("");
+  const addCustomWord = () => {
+    if (newWord && !customDictionary.includes(newWord)) {
+      setCustomDictionary([...customDictionary, newWord]);
+      addToPersonalDictionary(newWord);
+      setNewWord("");
     }
   };
 
   return (
-    <Box sx={{ padding: 2 }}>
-      <Typography variant="h6">Personal Dictionary</Typography>
-      <TextField
-        label="Add New Term"
-        value={newTerm}
-        onChange={(e) => setNewTerm(e.target.value)}
-        fullWidth
-        sx={{ marginBottom: 2 }}
-      />
-      <Button variant="contained" onClick={handleAdd} sx={{ marginBottom: 2 }}>
-        Add Term
+    <Box>
+      <Button
+        onClick={() => setShowDictionary(true)}
+        variant="outlined"
+        startIcon={<Add />}
+        size="small"
+        sx={{
+          minWidth: showButtonText ? "auto" : "40px",
+          "& .MuiButton-startIcon": {
+            mr: showButtonText ? 1 : 0,
+            ml: showButtonText ? 0 : 0,
+          },
+        }}
+      >
+        {showButtonText ? "Legg til ordliste" : ""}
       </Button>
-      <List>
-        {personalDictionary.map((term, index) => (
-          <ListItem
-            key={index}
-            secondaryAction={
-              <IconButton edge="end" onClick={() => onRemoveTerm(term)}>
-                <DeleteIcon />
-              </IconButton>
-            }
-          >
-            {term}
-          </ListItem>
-        ))}
-      </List>
+      <Dialog open={showDictionary} onClose={() => setShowDictionary(false)}>
+        <DialogTitle>Legg til ordliste</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Nytt ord"
+            value={newWord}
+            onChange={(e) => setNewWord(e.target.value)}
+            fullWidth
+            sx={{ mt: 1 }}
+          />
+          <Button onClick={addCustomWord} variant="outlined" sx={{ my: 1 }}>
+            Legg til
+          </Button>
+          <Box sx={{ maxHeight: "400px", overflowY: "auto", mt: 2 }}>
+            {customDictionary.map((word, index) => (
+              <Box key={index} sx={{ mb: 1 }}>
+                {word}
+              </Box>
+            ))}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowDictionary(false)} variant="outlined">
+            Lukk
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
