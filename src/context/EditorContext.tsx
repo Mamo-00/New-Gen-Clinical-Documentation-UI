@@ -1,3 +1,4 @@
+import { EditorView } from '@codemirror/view';
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 type Dimensions = {
@@ -6,7 +7,7 @@ type Dimensions = {
 };
 
 interface EditorContextType {
-  editorRef: React.RefObject<HTMLTextAreaElement>;
+  editorRef: React.RefObject<EditorView | null>;
   content: string;
   dimensions: Dimensions;
   setDimensions: (dimensions: Dimensions) => void;
@@ -36,7 +37,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [spellCheckEnabled, setSpellCheckEnabled] = useState(false);
   const [autoCompleteEnabled, setAutoCompleteEnabled] = useState(true);
 
-  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<EditorView | null>(null);
 
   const [dimensions, setDimensions] = useState({
     width: 800,

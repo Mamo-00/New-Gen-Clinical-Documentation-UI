@@ -55,7 +55,7 @@ const EditorControls: React.FC = () => {
               onChange={(e) => setSpellCheckEnabled(e.target.checked)}
             />
           }
-          label="Aktiver stavekontroll"
+          label="Stavekontroll"
         />
       </Box>
 

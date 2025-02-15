@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 
+/// Gets the width of its container to media-query purposes and shows the button text
+/// depending on a threshold value that is passed in as a parameter. 
 export const useContainerWidth = (threshold: number) => {
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);

@@ -1,6 +1,6 @@
 import { Theme } from '@mui/material';
 
-export const getDialogStyles = (theme: Theme, width: number, height: number) => ({
+export const getDialogStyles = (_theme: Theme, width: number, height: number) => ({
   paper: {
     sx: {
       width: width,

@@ -8,9 +8,6 @@ import { theme } from "./theme";
 import { EditorProvider } from "./context/EditorContext";
 import ResizableDialog from "./components/ResizableDialog";
 
-
-
-
 const App: React.FC = () => {
   return (
     <ThemeProvider theme={theme}>

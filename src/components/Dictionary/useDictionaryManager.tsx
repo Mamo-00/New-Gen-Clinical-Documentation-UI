@@ -21,7 +21,8 @@ export const useDictionaryManager = (): DictionaryManager => {
 
   // Merge central and personal dictionaries
   const getMergedDictionary = () => {
-    return Array.from(new Set([...centralDictionary.terms, ...personalDictionary]));
+    const allTerms = Object.values(centralDictionary).flat();
+    return Array.from(new Set([...allTerms, ...personalDictionary]));
   };
 
   return { getMergedDictionary, addToPersonalDictionary };

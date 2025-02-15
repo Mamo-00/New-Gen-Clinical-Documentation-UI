@@ -1,9 +1,15 @@
 import React, { useEffect, useRef } from "react";
 import { Box, List, ListItem } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+
+interface SuggestionItem {
+  label: string;
+  value: string;
+}
 
 interface SuggestionsDropdownProps {
-  suggestions: string[];
-  onSelect: (term: string) => void;
+  suggestions: SuggestionItem[];
+  onSelect: (term: SuggestionItem) => void;
   position: { top: number; left: number };
   isVisible: boolean;
 }
@@ -16,6 +22,7 @@ const SuggestionsDropdown: React.FC<SuggestionsDropdownProps> = ({
 }) => {
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const [activeIndex, setActiveIndex] = React.useState<number>(0);
+  const theme = useTheme();
 
   // Keyboard navigation logic
   useEffect(() => {
@@ -55,32 +62,32 @@ const SuggestionsDropdown: React.FC<SuggestionsDropdownProps> = ({
       ref={dropdownRef}
       sx={{
         position: "absolute",
-        top: position.top,
-        left: position.left,
-        backgroundColor: "white",
-        border: "1px solid #ccc",
+        top: "45%",
+        left: "5%",
+        backgroundColor: theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
         borderRadius: "4px",
-        boxShadow: 3,
+        boxShadow: theme.shadows[3],
         zIndex: 1000,
         width: "200px",
-        maxHeight: "150px",
+        maxHeight: "200px",
         overflowY: "auto",
       }}
     >
       <List>
         {suggestions.map((term, index) => (
           <ListItem
-            key={index}
+            key={term.value}
             sx={{
               padding: "8px",
-              backgroundColor: activeIndex === index ? "#f0f0f0" : "white",
+              backgroundColor: activeIndex === index ? theme.palette.action.hover : "transparent",
               cursor: "pointer",
-              "&:hover": { backgroundColor: "#f0f0f0" },
+              "&:hover": { backgroundColor: theme.palette.action.hover },
             }}
             onMouseEnter={() => setActiveIndex(index)}
             onClick={() => onSelect(term)}
           >
-            {term}
+            {term.label}
           </ListItem>
         ))}
       </List>

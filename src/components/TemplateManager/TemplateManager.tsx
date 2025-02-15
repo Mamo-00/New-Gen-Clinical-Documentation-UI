@@ -34,12 +34,20 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
   };
 
   const insertTemplate = (templateContent: string) => {
-    if (editorRef.current) {
-      const start = editorRef.current.selectionStart;
-      const end = editorRef.current.selectionEnd;
-      const newContent =
-        content.substring(0, start) + templateContent + content.substring(end);
-      setContent(newContent);
+    const view = editorRef.current;
+    if (view) {
+      const selection = view.state.selection.ranges[0];
+      view.dispatch({
+        changes: {
+          from: selection.from,
+          to: selection.to,
+          insert: templateContent
+        },
+        selection: {
+          anchor: selection.from + templateContent.length
+        }
+      });
+      view.focus();
     }
   };
 
