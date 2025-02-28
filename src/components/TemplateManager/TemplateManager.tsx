@@ -1,5 +1,8 @@
+// src/components/TemplateManager.tsx
 import React, { useState } from "react";
+import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { useEditor } from "../../context/EditorContext";
+import { addTemplate, selectUser } from "../../features/userSlice";
 import {
   Button,
   TextField,
@@ -16,19 +19,17 @@ interface TemplateManagerProps {
   showButtonText: boolean;
 }
 
-const TemplateManager: React.FC<TemplateManagerProps> = ({
-  showButtonText,
-}) => {
+const TemplateManager: React.FC<TemplateManagerProps> = ({ showButtonText }) => {
+  const dispatch = useAppDispatch();
+  const user = useAppSelector(selectUser);
+  const templates = user?.templates || [];
   const [showTemplates, setShowTemplates] = useState(false);
-  const [templates, setTemplates] = useState<
-    { name: string; content: string }[]
-  >([]);
   const [newTemplate, setNewTemplate] = useState({ name: "", content: "" });
-  const { content, setContent, editorRef } = useEditor();
+  const { editorRef } = useEditor();
 
-  const addTemplate = () => {
-    if (newTemplate.name && newTemplate.content) {
-      setTemplates([...templates, newTemplate]);
+  const handleAddTemplate = () => {
+    if (newTemplate.name && newTemplate.content && user) {
+      dispatch(addTemplate({ uid: user.uid, template: newTemplate }));
       setNewTemplate({ name: "", content: "" });
     }
   };
@@ -50,7 +51,7 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
       view.focus();
     }
   };
-
+  
   return (
     <Box>
       <Button
@@ -62,7 +63,6 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
           minWidth: showButtonText ? "auto" : "40px",
           "& .MuiButton-startIcon": {
             mr: showButtonText ? 1 : 0,
-            ml: showButtonText ? 0 : 0,
           },
         }}
       >
@@ -91,7 +91,7 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
             rows={4}
             sx={{ my: 1 }}
           />
-          <Button onClick={addTemplate} variant="outlined">
+          <Button onClick={handleAddTemplate} variant="outlined">
             Legg til mal
           </Button>
           <Box sx={{ maxHeight: "400px", overflowY: "auto" }}>
@@ -126,4 +126,5 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
     </Box>
   );
 };
+
 export default TemplateManager;

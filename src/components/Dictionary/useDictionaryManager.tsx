@@ -1,31 +1,34 @@
+// src/hooks/useDictionaryManager.ts
 import { useState } from "react";
+import { useAppDispatch, useAppSelector  } from "../../app/hooks";
+import { addCustomWord, selectUser  } from "../.././features/userSlice";
 import centralDictionary from "../../data/central-dictionary.json";
 
-interface DictionaryManager {
+export interface DictionaryManager {
   getMergedDictionary: () => string[];
   addToPersonalDictionary: (term: string) => void;
 }
 
 export const useDictionaryManager = (): DictionaryManager => {
-  // Initialize with the imported central dictionary and mock personal dictionary
-  const [personalDictionary, setPersonalDictionary] = useState<string[]>(["myotonic", "dysplasia"]);
+  const dispatch = useAppDispatch();
+  const user = useAppSelector(selectUser);
 
-  // Add new terms to the personal dictionary
   const addToPersonalDictionary = (term: string) => {
-    if (!personalDictionary.includes(term)) {
-      setPersonalDictionary((prev) => [...prev, term]);
+    if (!user?.wordlist.includes(term)) {
+      if (user) {
+        dispatch(addCustomWord({ uid: user.uid, word: term }));
+      }
       console.log(`Added "${term}" to personal dictionary`);
-      // TODO: Integrate with Firebase to persist the term
+    }
+    else {
+      console.log("term already exists");
     }
   };
 
-  // Merge central and personal dictionaries
   const getMergedDictionary = () => {
     const allTerms = Object.values(centralDictionary).flat();
-    return Array.from(new Set([...allTerms, ...personalDictionary]));
+    return Array.from(new Set([...allTerms, ...(user?.wordlist ?? [])]));
   };
 
   return { getMergedDictionary, addToPersonalDictionary };
 };
-
-

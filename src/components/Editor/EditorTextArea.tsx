@@ -1,91 +1,166 @@
-import React, { useEffect, useLayoutEffect, useRef } from "react";
-import { Box } from "@mui/material";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { Box, MenuItem, Menu } from "@mui/material";
 import { useEditor } from "../../context/EditorContext";
 import { EditorView } from "@codemirror/view";
-import { useMedicalCompletions } from '../../utils/hooks/useMedicalCompletions';
-import { useCodeMirrorConfig } from '../../utils/hooks/useCodeMirrorConfig';
+import { useMedicalCompletions } from "../../utils/hooks/useMedicalCompletions";
+import { useCodeMirrorConfig } from "../../utils/hooks/useCodeMirrorConfig";
 
 const EditorTextArea: React.FC = () => {
-  const { content, setContent, autoCompleteEnabled, editorRef } = useEditor();
+  const [contextMenu, setContextMenu] = useState<{
+    mouseX: number;
+    mouseY: number;
+    word: string;
+    isCustomWord: boolean;
+  } | null>(null);
+  const {
+    content,
+    setContent,
+    autoCompleteEnabled,
+    spellCheckEnabled,
+    editorRef,
+    spellChecker,
+  } = useEditor();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Get medical completions logic
   const { getCompletions } = useMedicalCompletions();
 
-  // Get editor configuration
+  // Get CodeMirror configuration.
   const { createEditorState } = useCodeMirrorConfig({
     content,
     setContent,
     autoCompleteEnabled,
+    spellCheckEnabled,
     getCompletions,
+    spellChecker,
   });
-
-  // Initialize editor
-  useLayoutEffect(() => {
+  
+   // Initialize CodeMirror and attach a context menu handler.
+   useLayoutEffect(() => {
     if (!containerRef.current) return;
 
     const view = new EditorView({
       state: createEditorState(),
-      parent: containerRef.current
+      parent: containerRef.current,
     });
 
-    // Store the EditorView instance in context ref
-    (editorRef as React.MutableRefObject<EditorView | null>).current = view;
+    editorRef.current = view;
 
-    return () => {
-      view.destroy();
-      (editorRef as React.MutableRefObject<EditorView | null>).current = null;
+    const handleContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+      if (pos !== null) {
+        const wordRange = view.state.wordAt(pos);
+        if (wordRange) {
+          const word = view.state.sliceDoc(wordRange.from, wordRange.to);
+          // Show context menu for both misspelled words AND custom dictionary words
+          if (spellChecker && 
+              (!spellChecker.checkWord(word) || spellChecker.isCustomWord(word))) {
+            setContextMenu({
+              mouseX: event.clientX,
+              mouseY: event.clientY,
+              word,
+              isCustomWord: spellChecker.isCustomWord(word)
+            });
+          }
+        }
+      }
     };
-  // Remove createEditorState from dependencies, only reinitialize on autoCompleteEnabled changes
-  }, [autoCompleteEnabled]);
 
-  // Modify the external content changes handler
-  useEffect(() => {
+    view.dom.addEventListener('contextmenu', handleContextMenu);
+    return () => {
+      view.dom.removeEventListener('contextmenu', handleContextMenu);
+      view.destroy();
+      editorRef.current = null;
+    };
+  }, [autoCompleteEnabled, spellCheckEnabled, spellChecker]);
+;
+
+   // Update the editor if external content changes.
+   useEffect(() => {
     const view = editorRef.current;
     if (!view) return;
-    
-    // Only update if the content is different and the change didn't come from the editor
     const currentContent = view.state.doc.toString();
     if (currentContent !== content && !view.hasFocus) {
       view.dispatch({
         changes: {
           from: 0,
           to: view.state.doc.length,
-          insert: content
-        }
+          insert: content,
+        },
       });
     }
   }, [content]);
 
+  const handleCloseContextMenu = () => {
+    setContextMenu(null);
+  };
+
+  const handleAddWord = () => {
+    if (contextMenu && spellChecker) {
+      spellChecker.addCustomWord(contextMenu.word);
+      // Optionally, trigger a re‑lint or refresh the editor state.
+      setContent(content); // A simple trick to force re‑evaluation.
+      handleCloseContextMenu();
+    }
+  };
+
+  const handleRemoveWord = () => {
+    if (contextMenu && spellChecker) {
+      spellChecker.removeCustomWord(contextMenu.word);
+      // Force re-evaluation
+      setContent(content);
+      handleCloseContextMenu();
+    }
+  };
+
   return (
-    <Box
-      ref={containerRef}
-      sx={{
-        mb: 2,
-        flex: 1,
-        overflow: "auto",
-        border: 1,
-        borderColor: "divider",
-        borderRadius: 1,
-        "& .cm-editor": {
-          // Additional MUI styling if needed
-          height: "100%",
-          minHeight: "300px", // Adjust as needed
-        },
-        // Container styling
-        display: "flex",
-        flexDirection: "column",
-        gap: 2,
-        p: 0,
-        backgroundColor: "background.paper",
-        position: "relative",
-        // Focus state
-        "&:focus-within": {
-          borderColor: "primary.main",
-          boxShadow: (theme) => `0 0 0 2px ${theme.palette.primary.main}20`,
-        },
-      }}
-    />
+    <>
+      <Box
+        ref={containerRef}
+        sx={{
+          mb: 2,
+          flex: 1,
+          overflow: 'auto',
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: 1,
+          '& .cm-editor': {
+            height: '100%',
+            minHeight: '300px',
+            padding: '8px'
+          },
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          p: 0,
+          backgroundColor: 'background.paper',
+          position: 'relative',
+          '&:focus-within': {
+            borderColor: 'primary.main',
+            boxShadow: (theme) => `0 0 0 2px ${theme.palette.primary.main}20`,
+          },
+        }}
+      />
+      <Menu
+        open={Boolean(contextMenu)}
+        onClose={handleCloseContextMenu}
+        anchorReference="anchorPosition"
+        anchorPosition={
+          contextMenu ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined
+        }
+      >
+        {contextMenu?.isCustomWord ? (
+          <MenuItem onClick={handleRemoveWord}>
+            Fjern &quot;{contextMenu?.word}&quot; fra ordlisten
+          </MenuItem>
+        ) : (
+          <MenuItem onClick={handleAddWord}>
+            Legg til &quot;{contextMenu?.word}&quot; i ordlisten
+          </MenuItem>
+        )}
+      </Menu>
+    </>
   );
 };
 
