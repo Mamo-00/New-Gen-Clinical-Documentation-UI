@@ -30,7 +30,18 @@
     "Staging",
     "Tumor",
     "Vevsprøve",
-    "Colon"
+    "Colon",
+    "Tubulært adenom",
+    "Lavgradig dysplasi",
+    "Høygradig dysplasi",
+    "Reaktive forandringer",
+    "Polypøs lesjon",
+    "Kryptarkitektur",
+    "Pseudostratifisert sylinderepitel",
+    "Hyperkromatiske kjerner",
+    "Sagtakket epitel",
+    "Beger-celler",
+    "Desmoplastisk bindevevsreaksjon"
   ],
   "Mikroskopi": [
     "Cytologisk atypi",
@@ -55,7 +66,12 @@
     "Ki-67",
     "HER2/neu",
     "ER/PR",
-    "PD-L1"
+    "PD-L1",
+    "Snitt",
+    "Tubulære strukturer",
+    "Bindevevsreaksjon",
+    "Lymfefollikkel",
+    "Mononukleære celler"
   ],
   "Makroskopi": [
     "Prøvepreparat",
@@ -78,7 +94,14 @@
     "Fettvev",
     "Muskelvev",
     "Bindevev",
-    "Knokkel"
+    "Knokkel",
+    "Polypp",
+    "Bredbaset polypp",
+    "Stilket polypp",
+    "Todeling",
+    "Reseksjonsrand",
+    "Flat polypp",
+    "Sagtakket epitel"
   ],
   "Anatomi": [
     "Lever",
@@ -92,8 +115,8 @@
     "Prostata",
     "Livmor",
     "Eggstokk",
-    "Testikkel",
     "Skjoldbruskkjertel",
+    "Sylinderepitel",
     "Lymfeknuter",
     "Blære",
     "Pancreas",
@@ -104,7 +127,12 @@
     "Skjelett",
     "Leddbånd",
     "Sener",
-    "Nerver"
+    "Nerver",
+    "Rektum",
+    "Colon sigmoideum",
+    "Colon cøcum",
+    "Colon ascendens",
+    "Colon fleksur"
   ],
   "Kirurgisk": [
     "Reseksjon",
@@ -129,6 +157,9 @@
     "Nephrektomi",
     "Lobektomi",
     "Appendektomi",
-    "Cholecystektomi"
+    "Cholecystektomi",
+    "Slyngereseksjon",
+    "Kald slynge",
+    "Varm slynge"
   ]
 }

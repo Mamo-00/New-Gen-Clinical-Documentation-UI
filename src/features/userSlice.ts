@@ -132,7 +132,9 @@ export const loginUserWithEmailPassword = createAsyncThunk(
           settings: { ...defaultSettings },
         };
         await setDoc(userRef, newUserData);
+        console.log("userdata:", newUserData);
         return newUserData;
+        
       } else {
         return { uid: firebaseUser.uid, ...docSnap.data() } as UserData;
       }

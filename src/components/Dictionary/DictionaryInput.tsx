@@ -1,3 +1,4 @@
+// src/components/DictionaryInput.tsx
 import React, { useState } from "react";
 import {
   Button,
@@ -15,18 +16,14 @@ interface DictionaryInputProps {
   showButtonText: boolean;
 }
 
-const DictionaryInput: React.FC<DictionaryInputProps> = ({
-  showButtonText,
-}) => {
+const DictionaryInput: React.FC<DictionaryInputProps> = ({ showButtonText }) => {
   const [showDictionary, setShowDictionary] = useState(false);
   const [newWord, setNewWord] = useState("");
-  const [customDictionary, setCustomDictionary] = useState<string[]>([]);
-  const { addToPersonalDictionary } = useDictionaryManager();
+  const { addToPersonalDictionary, personalDictionary } = useDictionaryManager();
 
   const addCustomWord = () => {
-    if (newWord && !customDictionary.includes(newWord)) {
-      setCustomDictionary([...customDictionary, newWord]);
-      addToPersonalDictionary(newWord);
+    if (newWord.trim() !== "") {
+      addToPersonalDictionary(newWord.trim());
       setNewWord("");
     }
   };
@@ -62,7 +59,7 @@ const DictionaryInput: React.FC<DictionaryInputProps> = ({
             Legg til
           </Button>
           <Box sx={{ maxHeight: "400px", overflowY: "auto", mt: 2 }}>
-            {customDictionary.map((word, index) => (
+            {personalDictionary.map((word, index) => (
               <Box key={index} sx={{ mb: 1 }}>
                 {word}
               </Box>

@@ -4,7 +4,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { defaultKeymap } from "@codemirror/commands";
 import { autocompletion } from "@codemirror/autocomplete";
-import { CompletionContext, CompletionResult } from "@codemirror/autocomplete";
+import { CompletionContext, CompletionResult, snippetCompletion } from "@codemirror/autocomplete";
 import { linter, Diagnostic } from "@codemirror/lint";
 import { SpellCheckerService } from "../../services/SpellCheckerService";
 
@@ -31,6 +31,8 @@ export const useCodeMirrorConfig = ({
   getCompletions,
   spellChecker,
 }: CodeMirrorConfigProps) => {
+
+  
   const createExtensions = useCallback(() => {
     const extensions = [
       // Allow editing.

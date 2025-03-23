@@ -23,6 +23,7 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ showButtonText }) => 
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectUser);
   const templates = user?.templates || [];
+  
   const [showTemplates, setShowTemplates] = useState(false);
   const [newTemplate, setNewTemplate] = useState({ name: "", content: "" });
   const { editorRef } = useEditor();
@@ -51,7 +52,7 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ showButtonText }) => 
       view.focus();
     }
   };
-  
+
   return (
     <Box>
       <Button

@@ -4,6 +4,8 @@ import { useEditor } from "../../context/EditorContext";
 import { EditorView } from "@codemirror/view";
 import { useMedicalCompletions } from "../../utils/hooks/useMedicalCompletions";
 import { useCodeMirrorConfig } from "../../utils/hooks/useCodeMirrorConfig";
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { selectUser, addCustomWord } from '../../features/userSlice';
 
 const EditorTextArea: React.FC = () => {
   const [contextMenu, setContextMenu] = useState<{
@@ -21,7 +23,8 @@ const EditorTextArea: React.FC = () => {
     spellChecker,
   } = useEditor();
   const containerRef = useRef<HTMLDivElement>(null);
-
+  const dispatch = useAppDispatch();
+  const user = useAppSelector(selectUser);
   // Get medical completions logic
   const { getCompletions } = useMedicalCompletions();
 
@@ -53,8 +56,7 @@ const EditorTextArea: React.FC = () => {
         const wordRange = view.state.wordAt(pos);
         if (wordRange) {
           const word = view.state.sliceDoc(wordRange.from, wordRange.to);
-          // Show context menu for both misspelled words AND custom dictionary words
-          if (spellChecker && 
+            if (spellChecker && 
               (!spellChecker.checkWord(word) || spellChecker.isCustomWord(word))) {
             setContextMenu({
               mouseX: event.clientX,
@@ -99,7 +101,11 @@ const EditorTextArea: React.FC = () => {
   const handleAddWord = () => {
     if (contextMenu && spellChecker) {
       spellChecker.addCustomWord(contextMenu.word);
-      // Optionally, trigger a re‑lint or refresh the editor state.
+      const reduxWord = contextMenu.word;
+      if (user) {
+        dispatch(addCustomWord({ uid: user?.uid, word: reduxWord }));
+      }
+    
       setContent(content); // A simple trick to force re‑evaluation.
       handleCloseContextMenu();
     }

@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
-import { CompletionContext, CompletionResult } from '@codemirror/autocomplete';
+import { CompletionContext, CompletionResult, snippetCompletion } from '@codemirror/autocomplete';
 import centralDictionary from "../../data/central-dictionary.json"
+import { convertTemplateToSnippet } from "../../utils/templates/snippetUtils";
 
 interface MedicalCompletion {
   label: string;
@@ -11,11 +12,6 @@ interface MedicalCompletion {
 
 export const useMedicalCompletions = () => {
   const isSpecialTerm = (term: string): boolean => {
-    // Check if term contains any of these patterns:
-    // - Has a slash (ER/PR)
-    // - Has a hyphen with numbers (HER2, PD-L1)
-    // - Is all uppercase and at least 2 chars (CT, MRI)
-    // - Has numbers (Ki-67)
     return (
       term.includes('/') ||
       term.includes('-') ||
@@ -30,7 +26,7 @@ export const useMedicalCompletions = () => {
         (terms as string[]).map(term => ({
           label: isSpecialTerm(term) ? term : term.toLowerCase(),
           type: "medical-term",
-          info: `Category: ${category}`,
+          info: `Kategori: ${category}`,
           boost: 1
         }))
     ), []);
@@ -55,6 +51,22 @@ export const useMedicalCompletions = () => {
   }
 
   const getCompletions = useCallback((context: CompletionContext): CompletionResult | null => {
+
+    const snippetTrigger = context.matchBefore(/template:/);
+    if (snippetTrigger) {
+      const userTemplate = "Lav, bredbaset polypp {{x}} mm, seriesnittes i {{#1}}.";
+      const snippetText = convertTemplateToSnippet(userTemplate);
+      const snippet = snippetCompletion(snippetText, {
+        label: "Bredbaset polypp",
+        detail: "Custom snippet",
+        type: "snippet"
+      });
+      return {
+        from: snippetTrigger.from,
+        options: [snippet]
+      };
+    }
+
     let word = context.matchBefore(/\w+/);
     
     if (!word || (!context.explicit && word.text.length < 3)) {

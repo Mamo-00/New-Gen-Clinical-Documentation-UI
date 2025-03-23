@@ -3,7 +3,7 @@ import { Box } from "@mui/material";
 import Header from "../Header";
 import EditorFooter from "../EditorFooter";
 import EditorControls from "../Settings/EditorControls";
-import AutocompleteTextArea from "./EditorTextArea";
+import EditorTextArea  from "./EditorTextArea";
 
 const Editor: React.FC = () => {
 
@@ -23,7 +23,7 @@ const Editor: React.FC = () => {
     >
       <Header />
       <EditorControls />
-      <AutocompleteTextArea />
+      <EditorTextArea />
       <EditorFooter />
     </Box>
   );

@@ -1,10 +1,20 @@
 // src/context/EditorContext.tsx
-import { EditorView } from '@codemirror/view';
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { SpellCheckerService } from '../services/SpellCheckerService';
-import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { selectUser } from '../features/userSlice';
-import { updateEditorDimensions, updateEditorPinned, updateEditorSpellCheckEnabled } from '../features/userSlice';
+import { EditorView } from "@codemirror/view";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
+import { SpellCheckerService } from "../services/SpellCheckerService";
+import { useAppDispatch, useAppSelector } from "../app/hooks";
+import { selectUser } from "../features/userSlice";
+import {
+  updateEditorDimensions,
+  updateEditorPinned,
+  updateEditorSpellCheckEnabled,
+} from "../features/userSlice";
 
 type Dimensions = {
   width: number;
@@ -36,15 +46,22 @@ interface EditorContextType {
 
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
 
-export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [content, setContent] = useState('');
+export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [content, setContent] = useState("");
   const [wordCount, setWordCount] = useState(0);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [pinned, setPinned] = useState(false);
   const [spellCheckEnabled, setSpellCheckEnabled] = useState(true);
-  const [spellChecker, setSpellChecker] = useState<SpellCheckerService | null>(null);
+  const [spellChecker, setSpellChecker] = useState<SpellCheckerService | null>(
+    null
+  );
   const [autoCompleteEnabled, setAutoCompleteEnabled] = useState(true);
-  const [dimensions, setDimensions] = useState<Dimensions>({ width: 800, height: 600 });
+  const [dimensions, setDimensions] = useState<Dimensions>({
+    width: 800,
+    height: 600,
+  });
   const editorRef = useRef<EditorView | null>(null);
 
   const dispatch = useAppDispatch();
@@ -53,10 +70,10 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     async function loadSpellChecker() {
       const sc = await SpellCheckerService.create(
-        '/dictionaries/nb_NO.aff',
-        '/dictionaries/nb_NO.dic',
-        '/dictionaries/nn_NO.aff',
-        '/dictionaries/nn_NO.dic',
+        "/dictionaries/nb_NO.aff",
+        "/dictionaries/nb_NO.dic",
+        "/dictionaries/nn_NO.aff",
+        "/dictionaries/nn_NO.dic",
         user?.wordlist
       );
       setSpellChecker(sc);
@@ -66,14 +83,17 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Load saved content and dimensions from localStorage
   useEffect(() => {
-    const savedContent = localStorage.getItem('editorContent');
-    const savedDate = localStorage.getItem('lastSaved');
+    const savedContent = localStorage.getItem("editorContent");
+    const savedDate = localStorage.getItem("lastSaved");
     if (savedContent) setContent(savedContent);
     if (savedDate) setLastSaved(new Date(savedDate));
     const savedWidth = localStorage.getItem("editorWidth");
     const savedHeight = localStorage.getItem("editorHeight");
     if (savedWidth && savedHeight) {
-      setDimensions({ width: parseInt(savedWidth), height: parseInt(savedHeight) });
+      setDimensions({
+        width: parseInt(savedWidth),
+        height: parseInt(savedHeight),
+      });
     }
   }, []);
 
@@ -97,14 +117,19 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const handleResize = (_event: any, { size }: any) => {
     setDimensions({ width: size.width, height: size.height });
     if (user) {
-      dispatch(updateEditorDimensions({ uid: user.uid, dimensions: { width: size.width, height: size.height } }));
+      dispatch(
+        updateEditorDimensions({
+          uid: user.uid,
+          dimensions: { width: size.width, height: size.height },
+        })
+      );
     }
   };
 
   const handleSave = () => {
     setLastSaved(new Date());
-    localStorage.setItem('editorContent', content);
-    localStorage.setItem('lastSaved', new Date().toISOString());
+    localStorage.setItem("editorContent", content);
+    localStorage.setItem("lastSaved", new Date().toISOString());
   };
 
   const handleUndo = () => {
@@ -119,28 +144,30 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   return (
-    <EditorContext.Provider value={{
-      content,
-      setContent,
-      dimensions,
-      setDimensions,
-      wordCount,
-      setWordCount,
-      lastSaved,
-      setLastSaved,
-      pinned,
-      spellCheckEnabled,
-      setSpellCheckEnabled: setSpellCheckEnabledAndPersist,
-      spellChecker,
-      setSpellChecker,
-      autoCompleteEnabled,
-      setAutoCompleteEnabled,
-      handlePin,
-      handleSave,
-      handleUndo,
-      handleResize,
-      editorRef,
-    }}>
+    <EditorContext.Provider
+      value={{
+        content,
+        setContent,
+        dimensions,
+        setDimensions,
+        wordCount,
+        setWordCount,
+        lastSaved,
+        setLastSaved,
+        pinned,
+        spellCheckEnabled,
+        setSpellCheckEnabled: setSpellCheckEnabledAndPersist,
+        spellChecker,
+        setSpellChecker,
+        autoCompleteEnabled,
+        setAutoCompleteEnabled,
+        handlePin,
+        handleSave,
+        handleUndo,
+        handleResize,
+        editorRef,
+      }}
+    >
       {children}
     </EditorContext.Provider>
   );
@@ -149,7 +176,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 export const useEditor = () => {
   const context = useContext(EditorContext);
   if (context === undefined) {
-    throw new Error('useEditor must be used within an EditorProvider');
+    throw new Error("useEditor must be used within an EditorProvider");
   }
   return context;
 };

@@ -6,11 +6,12 @@ import { theme } from "./theme";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { EditorProvider } from "./context/EditorContext";
 import ResizableDialog from "./components/ResizableDialog";
-import LoginPage from "./components/Login/LoginPage";
+import LoginPage from "./pages/Login/LoginPage";
 import { useAppSelector, useAppDispatch } from "./app/hooks";
 import { fetchUserData, logoutUser, selectUser } from "./features/userSlice";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
+import MainPage from "./pages/Main/MainPage";
 
 const App: React.FC = () => {
   const user = useAppSelector(selectUser);
@@ -36,7 +37,7 @@ const App: React.FC = () => {
       <EditorProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={user ? <ResizableDialog /> : <Navigate to="/login" />} />
+            <Route path="/" element={user ? <MainPage /> : <Navigate to="/login" />} />
             <Route path="/login" element={<LoginPage />} />
           </Routes>
         </BrowserRouter>

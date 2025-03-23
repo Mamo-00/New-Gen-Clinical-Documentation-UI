@@ -28,36 +28,7 @@ const EditorControls: React.FC = () => {
       }}
     >
       {/* Toggles Container */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
-          minHeight: 48,
-          borderBottom: 1,
-          borderColor: "divider",
-        }}
-      >
-        <FormControlLabel
-          control={
-            <Switch
-              checked={autoCompleteEnabled}
-              onChange={(e) => setAutoCompleteEnabled(e.target.checked)}
-            />
-          }
-          label="Forslagsvisning"
-        />
-
-        <FormControlLabel
-          control={
-            <Switch
-              checked={spellCheckEnabled}
-              onChange={(e) => setSpellCheckEnabled(e.target.checked)}
-            />
-          }
-          label="Stavekontroll"
-        />
-      </Box>
+      
 
       {/* Buttons Container */}
       <Box
@@ -65,12 +36,13 @@ const EditorControls: React.FC = () => {
         sx={{
           display: "flex",
           alignItems: "center",
-          gap: 2,
+          gap: 4,
           minHeight: 48,
           flexShrink: 0,
         }}
       >
         <TemplateManager showButtonText={showButtonText} />
+
         <DictionaryInput showButtonText={showButtonText} />
         <Button
           onClick={handleSave}
@@ -103,6 +75,25 @@ const EditorControls: React.FC = () => {
         >
           {showButtonText ? "Angre" : ""}
         </Button>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={autoCompleteEnabled}
+              onChange={(e) => setAutoCompleteEnabled(e.target.checked)}
+            />
+          }
+          label="Forslagsvisning"
+        />
+
+        <FormControlLabel
+          control={
+            <Switch
+              checked={spellCheckEnabled}
+              onChange={(e) => setSpellCheckEnabled(e.target.checked)}
+            />
+          }
+          label="Stavekontroll"
+        />
       </Box>
     </Box>
   );
