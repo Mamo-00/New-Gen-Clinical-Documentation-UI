@@ -49,7 +49,7 @@ export const theme = createTheme({
   ...themeOptions,
   colorSchemes: {
     light: { palette: lightPalette },
-    dark: { palette: darkPalette },
+    //: { palette: darkPalette },
   },
 });
 

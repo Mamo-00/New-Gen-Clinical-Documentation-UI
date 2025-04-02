@@ -1,16 +1,17 @@
-import React, { useState } from "react";
+import React from "react";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { logoutUser, selectUser } from "../../features/userSlice";
 import { useNavigate } from "react-router-dom";
-import Editor from "../../components/Editor/Editor";
-import { Box, Button, Chip, Divider, Stack, Typography } from "@mui/material";
+import { Box, Chip, Divider, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import EditorTextArea from "../../components/Editor/EditorTextArea";
 import EditorControls from "../../components/Settings/EditorControls";
-import GlassTree from "../../components/Trees/GlassTree";
+import DynamicTree from "../../components/Trees/ExampleTree/DynamicTree";
+import { initialGlassValues, initialHudbitValues, initialPolyppValues, initialTraadvevValues } from "../../components/Trees/utilities/initialValues";
+import { glass, hudbit, traadvev, polypp } from "../../components/Trees/utilities/tree-schema";
+// Interface for a single tree item
 
 const MainPage: React.FC = () => {
-  const [open, setOpen] = useState(true);
 
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -206,7 +207,12 @@ const MainPage: React.FC = () => {
         </Grid>
 
         <Grid size={4} sx={{p: 2}}>
-          <GlassTree />
+        <DynamicTree
+            title={`Makroskopi - ${traadvev.label}`}
+            schema={traadvev}
+            initialValues={initialTraadvevValues}
+            itemLabel="trådvev"
+          />
         </Grid>
       </Grid>
     </Box>
