@@ -6,6 +6,7 @@ import React, {
   useState,
   useEffect,
   useRef,
+  useCallback,
 } from "react";
 import { SpellCheckerService } from "../services/SpellCheckerService";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
@@ -21,21 +22,29 @@ type Dimensions = {
   height: number;
 };
 
+// Define a type for individual editor state
+interface EditorState {
+  content: string;
+  wordCount: number;
+  lastSaved: Date | null;
+}
+
 interface EditorContextType {
   editorRef: React.MutableRefObject<EditorView | null>;
   dimensions: Dimensions;
   setDimensions: (dimensions: Dimensions) => void;
-  content: string;
-  setContent: (content: string) => void;
-  wordCount: number;
-  setWordCount: (wordCount: number) => void;
-  lastSaved: Date | null;
-  setLastSaved: (lastSaved: Date | null) => void;
+  // Change to support multiple editors
+  getContent: (editorId: string) => string;
+  setContent: (editorId: string, content: string) => void;
+  getWordCount: (editorId: string) => number;
+  setWordCount: (editorId: string, wordCount: number) => void;
+  getLastSaved: (editorId: string) => Date | null;
+  setLastSaved: (editorId: string, lastSaved: Date | null) => void;
   autoCompleteEnabled: boolean;
   setAutoCompleteEnabled: (enabled: boolean) => void;
   pinned: boolean;
   handlePin: () => void;
-  handleSave: () => void;
+  handleSave: (editorId: string) => void;
   handleUndo: () => void;
   handleResize: (event: any, { size }: any) => void;
   spellCheckEnabled: boolean;
@@ -49,9 +58,8 @@ const EditorContext = createContext<EditorContextType | undefined>(undefined);
 export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [content, setContent] = useState("");
-  const [wordCount, setWordCount] = useState(0);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  // Replace single content with a map of editor contents
+  const [editorStates, setEditorStates] = useState<Record<string, EditorState>>({});
   const [pinned, setPinned] = useState(false);
   const [spellCheckEnabled, setSpellCheckEnabled] = useState(true);
   const [spellChecker, setSpellChecker] = useState<SpellCheckerService | null>(
@@ -81,12 +89,26 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({
     loadSpellChecker();
   }, []);
 
-  // Load saved content and dimensions from localStorage
+  // Load saved content from localStorage for each editor
   useEffect(() => {
-    const savedContent = localStorage.getItem("editorContent");
-    const savedDate = localStorage.getItem("lastSaved");
-    if (savedContent) setContent(savedContent);
-    if (savedDate) setLastSaved(new Date(savedDate));
+    // Load editor content for all known editors
+    const editorIds = ["makroskopisk", "mikroskopisk", "konklusjon"]; // Default editor IDs
+    
+    const newEditorStates: Record<string, EditorState> = {};
+    
+    editorIds.forEach(id => {
+      const savedContent = localStorage.getItem(`editorContent_${id}`);
+      const savedDate = localStorage.getItem(`lastSaved_${id}`);
+      
+      newEditorStates[id] = {
+        content: savedContent || "",
+        wordCount: savedContent ? savedContent.split(/\s+/).filter(Boolean).length : 0,
+        lastSaved: savedDate ? new Date(savedDate) : null
+      };
+    });
+    
+    setEditorStates(newEditorStates);
+    
     const savedWidth = localStorage.getItem("editorWidth");
     const savedHeight = localStorage.getItem("editorHeight");
     if (savedWidth && savedHeight) {
@@ -97,10 +119,49 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  // Update word count when content changes
-  useEffect(() => {
-    setWordCount(content.split(/\s+/).filter(Boolean).length);
-  }, [content]);
+  // Getter and setter methods for individual editor states
+  const getContent = useCallback((editorId: string) => {
+    return editorStates[editorId]?.content || "";
+  }, [editorStates]);
+
+  const setContent = useCallback((editorId: string, content: string) => {
+    setEditorStates(prev => ({
+      ...prev,
+      [editorId]: {
+        ...prev[editorId] || { wordCount: 0, lastSaved: null },
+        content,
+        wordCount: content.split(/\s+/).filter(Boolean).length
+      }
+    }));
+  }, []);
+
+  const getWordCount = useCallback((editorId: string) => {
+    return editorStates[editorId]?.wordCount || 0;
+  }, [editorStates]);
+
+  const setWordCount = useCallback((editorId: string, wordCount: number) => {
+    setEditorStates(prev => ({
+      ...prev,
+      [editorId]: {
+        ...prev[editorId] || { content: "", lastSaved: null },
+        wordCount
+      }
+    }));
+  }, []);
+
+  const getLastSaved = useCallback((editorId: string) => {
+    return editorStates[editorId]?.lastSaved || null;
+  }, [editorStates]);
+
+  const setLastSaved = useCallback((editorId: string, lastSaved: Date | null) => {
+    setEditorStates(prev => ({
+      ...prev,
+      [editorId]: {
+        ...prev[editorId] || { content: "", wordCount: 0 },
+        lastSaved
+      }
+    }));
+  }, []);
 
   const handlePin = () => {
     const newPinned = !pinned;
@@ -126,11 +187,15 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const handleSave = () => {
-    setLastSaved(new Date());
-    localStorage.setItem("editorContent", content);
-    localStorage.setItem("lastSaved", new Date().toISOString());
-  };
+  const handleSave = useCallback((editorId: string) => {
+    const now = new Date();
+    setLastSaved(editorId, now);
+    
+    // Save to localStorage with the editor ID as part of the key
+    const content = getContent(editorId);
+    localStorage.setItem(`editorContent_${editorId}`, content);
+    localStorage.setItem(`lastSaved_${editorId}`, now.toISOString());
+  }, [getContent, setLastSaved]);
 
   const handleUndo = () => {
     // Implement undo logic (if needed)
@@ -146,14 +211,14 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({
   return (
     <EditorContext.Provider
       value={{
-        content,
+        getContent,
         setContent,
+        getWordCount,
+        setWordCount,
+        getLastSaved,
+        setLastSaved,
         dimensions,
         setDimensions,
-        wordCount,
-        setWordCount,
-        lastSaved,
-        setLastSaved,
         pinned,
         spellCheckEnabled,
         setSpellCheckEnabled: setSpellCheckEnabledAndPersist,

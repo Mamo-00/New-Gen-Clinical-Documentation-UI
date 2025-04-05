@@ -18,7 +18,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("Auth state changed:", firebaseUser);
 
       if (firebaseUser) {
         await dispatch(fetchUserData(firebaseUser.uid)); // Fetch user data

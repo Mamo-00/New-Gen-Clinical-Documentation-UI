@@ -33,7 +33,6 @@ export const TreeRenderer: React.FC<TreeRendererProps> = ({
   const theme = useTheme();
   // Calculate indentation based on depth – for example, 16px per level if spacing(2) equals 16px.
   const indent = schema.isIndented ? theme.spacing(depth * 1.0) : 0;
-  console.log("the options in TR: ", schema?.options);
 
   // Conditional rendering: if this node should only appear when a dependent field has a given value.
   if (schema.conditionalOn) {

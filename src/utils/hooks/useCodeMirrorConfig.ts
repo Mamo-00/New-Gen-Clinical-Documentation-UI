@@ -1,4 +1,3 @@
-// utils/hooks/useCodeMirrorConfig.ts
 import { useCallback } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
@@ -134,7 +133,7 @@ export const useCodeMirrorConfig = ({
       doc: content || "",
       extensions: createExtensions(),
     });
-  }, [content, createExtensions]);
+  }, [createExtensions]);
 
   return { createEditorState };
 };

@@ -42,39 +42,7 @@ const EditorControls: React.FC = () => {
         }}
       >
         <TemplateManager showButtonText={showButtonText} />
-
         <DictionaryInput showButtonText={showButtonText} />
-        <Button
-          onClick={handleSave}
-          variant="contained"
-          startIcon={<Save />}
-          size="small"
-          sx={{
-            minWidth: showButtonText ? "auto" : "40px",
-            "& .MuiButton-startIcon": {
-              mr: showButtonText ? 1 : 0,
-              ml: showButtonText ? 0 : 0,
-            },
-          }}
-        >
-          {showButtonText ? "Lagre" : ""}
-        </Button>
-
-        <Button
-          onClick={handleUndo}
-          variant="outlined"
-          startIcon={<Undo />}
-          size="small"
-          sx={{
-            minWidth: showButtonText ? "auto" : "40px",
-            "& .MuiButton-startIcon": {
-              mr: showButtonText ? 1 : 0,
-              ml: showButtonText ? 0 : 0,
-            },
-          }}
-        >
-          {showButtonText ? "Angre" : ""}
-        </Button>
         <FormControlLabel
           control={
             <Switch

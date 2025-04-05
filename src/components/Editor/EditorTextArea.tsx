@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { Box, MenuItem, Menu } from "@mui/material";
 import { useEditor } from "../../context/EditorContext";
 import { EditorView } from "@codemirror/view";
@@ -7,7 +7,11 @@ import { useCodeMirrorConfig } from "../../utils/hooks/useCodeMirrorConfig";
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { selectUser, addCustomWord } from '../../features/userSlice';
 
-const EditorTextArea: React.FC = () => {
+interface EditorTextAreaProps {
+  editorId: string;
+}
+
+const EditorTextArea: React.FC<EditorTextAreaProps> = ({ editorId }) => {
   const [contextMenu, setContextMenu] = useState<{
     mouseX: number;
     mouseY: number;
@@ -15,11 +19,10 @@ const EditorTextArea: React.FC = () => {
     isCustomWord: boolean;
   } | null>(null);
   const {
-    content,
-    setContent,
+    getContent,
+    setContent: contextSetContent,
     autoCompleteEnabled,
     spellCheckEnabled,
-    editorRef,
     spellChecker,
   } = useEditor();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -27,6 +30,15 @@ const EditorTextArea: React.FC = () => {
   const user = useAppSelector(selectUser);
   // Get medical completions logic
   const { getCompletions } = useMedicalCompletions();
+
+  const content = getContent(editorId);
+
+  const setContent = useCallback(
+    (newContent: string) => contextSetContent(editorId, newContent),
+    [contextSetContent, editorId]
+  );
+
+  const editorRef = useRef<EditorView | null>(null);
 
   // Get CodeMirror configuration.
   const { createEditorState } = useCodeMirrorConfig({
@@ -41,12 +53,12 @@ const EditorTextArea: React.FC = () => {
    // Initialize CodeMirror and attach a context menu handler.
    useLayoutEffect(() => {
     if (!containerRef.current) return;
-
+  
     const view = new EditorView({
       state: createEditorState(),
       parent: containerRef.current,
     });
-
+  
     editorRef.current = view;
 
     const handleContextMenu = (event: MouseEvent) => {
@@ -75,13 +87,14 @@ const EditorTextArea: React.FC = () => {
       view.destroy();
       editorRef.current = null;
     };
-  }, [autoCompleteEnabled, spellCheckEnabled, spellChecker]);
+  }, [autoCompleteEnabled, spellCheckEnabled, spellChecker, createEditorState]);
 ;
 
    // Update the editor if external content changes.
    useEffect(() => {
     const view = editorRef.current;
     if (!view) return;
+    // Update logic using localEditorRef
     const currentContent = view.state.doc.toString();
     if (currentContent !== content && !view.hasFocus) {
       view.dispatch({

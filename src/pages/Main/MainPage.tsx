@@ -2,25 +2,93 @@ import React from "react";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { logoutUser, selectUser } from "../../features/userSlice";
 import { useNavigate } from "react-router-dom";
-import { Box, Chip, Divider, Typography } from "@mui/material";
+import { Box, Button, Chip, Divider, Stack, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import EditorTextArea from "../../components/Editor/EditorTextArea";
 import EditorControls from "../../components/Settings/EditorControls";
 import DynamicTree from "../../components/Trees/ExampleTree/DynamicTree";
-import { initialGlassValues, initialHudbitValues, initialPolyppValues, initialTraadvevValues } from "../../components/Trees/utilities/initialValues";
-import { glass, hudbit, traadvev, polypp } from "../../components/Trees/utilities/tree-schema";
-// Interface for a single tree item
+import {
+  initialGlassValues,
+  initialHudbitValues,
+  initialPolyppValues,
+  initialTraadvevValues,
+} from "../../components/Trees/utilities/initialValues";
+import {
+  glass,
+  hudbit,
+  traadvev,
+  polypp,
+} from "../../components/Trees/utilities/tree-schema";
+import { useEditor } from "../../context/EditorContext";
+import { useContainerWidth } from "../../utils/hooks/useContainerWidth";
+import { Save } from "@mui/icons-material";
+import { Undo } from "@mui/icons-material";
+
+interface ToolbarProps {
+  editorId: string;
+  title: string;
+}
 
 const MainPage: React.FC = () => {
-
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+
+  const { handleSave, handleUndo } = useEditor();
+  const { containerRef, showButtonText } = useContainerWidth(375);
+
   const user = useAppSelector(selectUser);
 
   const handleLogout = async () => {
     await dispatch(logoutUser());
     // After logging out, navigate back to the login page
     navigate("/login");
+  };
+
+  const Toolbar: React.FC<ToolbarProps> = ({ editorId, title }) => {
+    return (
+      <Stack direction="row" justifyContent="space-between" sx={{ py: 1 }}>
+        <Typography variant="h4" fontWeight={"bold"}>
+          {title}
+        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 1,
+          }}
+        >
+          <Button
+            onClick={handleUndo}
+            variant="outlined"
+            startIcon={<Undo />}
+            size="small"
+            sx={{
+              minWidth: showButtonText ? "auto" : "40px",
+              "& .MuiButton-startIcon": {
+                mr: showButtonText ? 1 : 0,
+                ml: showButtonText ? 0 : 0,
+              },
+            }}
+          >
+            {showButtonText ? "Angre" : ""}
+          </Button>
+          <Button
+            onClick={() => handleSave(editorId)}
+            variant="contained"
+            startIcon={<Save />}
+            size="small"
+            sx={{
+              minWidth: showButtonText ? "auto" : "40px",
+              "& .MuiButton-startIcon": {
+                mr: showButtonText ? 1 : 0,
+                ml: showButtonText ? 0 : 0,
+              },
+            }}
+          >
+            {showButtonText ? "Lagre" : ""}
+          </Button>
+        </Box>
+      </Stack>
+    );
   };
 
   return (
@@ -178,6 +246,7 @@ const MainPage: React.FC = () => {
 
         <Grid size={5}>
           <Box
+            ref={containerRef}
             sx={{
               display: "flex",
               flexDirection: "column",
@@ -191,27 +260,23 @@ const MainPage: React.FC = () => {
               borderColor: "divider",
             }}
           >
-            <Typography variant="h4" fontWeight={"bold"}>
-              Makroskopisk Beskrivelse
-            </Typography>
-            <EditorTextArea />
-            <Typography variant="h4" fontWeight={"bold"}>
-              Mikroskopisk Beskrivelse
-            </Typography>
-            <EditorTextArea />
-            <Typography variant="h4" fontWeight={"bold"}>
-              Konklusjon/Diagnose
-            </Typography>
-            <EditorTextArea />
+            <Toolbar editorId="makroskopisk" title="Makroskopisk Beskrivelse" />
+            <EditorTextArea editorId="makroskopisk" />
+
+            <Toolbar editorId="mikroskopisk" title="Mikroskopisk Beskrivelse" />
+            <EditorTextArea editorId="mikroskopisk" />
+
+            <Toolbar editorId="konklusjon" title="Konklusjon/Diagnose" />
+            <EditorTextArea editorId="konklusjon" />
           </Box>
         </Grid>
 
-        <Grid size={4} sx={{p: 2}}>
-        <DynamicTree
-            title={`Makroskopi - ${traadvev.label}`}
-            schema={traadvev}
-            initialValues={initialTraadvevValues}
-            itemLabel="trådvev"
+        <Grid size={4} sx={{ p: 2 }}>
+          <DynamicTree
+            title={`Makroskopi - ${glass.label}`}
+            schema={glass}
+            initialValues={initialGlassValues}
+            itemLabel="glass"
           />
         </Grid>
       </Grid>
