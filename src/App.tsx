@@ -1,49 +1,59 @@
-import React from "react";
-import { ThemeProvider, CssBaseline, useColorScheme, IconButton, Box } from "@mui/material";
-import { Experimental_CssVarsProvider as CssVarsProvider } from '@mui/material/styles';
+import React, { useEffect, useState } from "react";
+import { CssBaseline, ThemeProvider } from "@mui/material";
 import { theme } from "./theme";
-import EditorComponent from "./components/EditorComponent";
-import { Brightness4, Brightness7 } from "@mui/icons-material";
-
-const ColorModeToggle = () => {
-  const { mode, setMode } = useColorScheme();
-
-  const toggleColorMode = () => {
-    setMode(mode === 'light' ? 'dark' : 'light');
-  };
-
-  return (
-    <IconButton 
-      onClick={toggleColorMode} 
-      color="inherit" 
-      sx={{ 
-        position: 'absolute', 
-        top: 10, 
-        right: 10,
-        zIndex: 1000
-      }}
-    >
-      {mode === "light" ? <Brightness4 /> : <Brightness7 />}
-    </IconButton>
-  );
-};
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { EditorProvider } from "./context/EditorContext";
+import LoginPage from "./pages/Login/LoginPage";
+import { useAppSelector, useAppDispatch } from "./app/hooks";
+import { fetchUserData, logoutUser, selectUser } from "./features/userSlice";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./firebase";
+import MainPage from "./pages/Main/MainPage";
+import LoadingSkeleton from "./components/LoadingSkeleton";
 
 const App: React.FC = () => {
-  return (
-    <CssVarsProvider theme={theme}>
+  const user = useAppSelector(selectUser);
+  const dispatch = useAppDispatch();
+  const [authLoading, setAuthLoading] = useState(true); // Track loading state
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+
+      if (firebaseUser) {
+        await dispatch(fetchUserData(firebaseUser.uid)); // Fetch user data
+      } else {
+        dispatch(logoutUser()); // Ensure user state is cleared
+      }
+
+      setAuthLoading(false); // Mark authentication check as complete
+    });
+
+    return () => unsubscribe(); // Cleanup subscription on unmount
+  }, [dispatch]);
+
+  // ✅ Show Skeleton UI while checking authentication
+  if (authLoading) {
+    return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <Box sx={{ 
-          width: '100%', 
-          height: '100vh', 
-          backgroundColor: 'background.default',
-          position: 'relative'
-        }}>
-          <ColorModeToggle />
-          <EditorComponent />
-        </Box>
+        <LoadingSkeleton />
       </ThemeProvider>
-    </CssVarsProvider>
+    );
+  }
+
+  // ✅ Redirect logged-out users to /login
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <EditorProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={user ? <MainPage /> : <Navigate to="/login" />} />
+            <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
+          </Routes>
+        </BrowserRouter>
+      </EditorProvider>
+    </ThemeProvider>
   );
 };
 

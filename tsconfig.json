@@ -1,5 +1,21 @@
 {
-  "files": [],
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "strict": true,
+    "jsx": "react-jsx",
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "noImplicitAny": false,
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "lib": ["es6"],
+    "noEmit": true,
+    "composite": true
+  },
+  "include": ["src", "src/globals.d.ts"],
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }

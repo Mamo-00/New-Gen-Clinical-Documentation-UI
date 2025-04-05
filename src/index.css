@@ -13,6 +13,12 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.highlighted-term {
+  background-color: yellow; /* Highlighted medical terms */
+  color: red;
+  font-weight: bold;
+}
+
 a {
   font-weight: 500;
   color: #646cff;
