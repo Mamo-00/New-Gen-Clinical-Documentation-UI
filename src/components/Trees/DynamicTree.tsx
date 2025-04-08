@@ -15,9 +15,12 @@ import KeyboardDoubleArrowLeftIcon from '@mui/icons-material/KeyboardDoubleArrow
 import KeyboardDoubleArrowRightIcon from '@mui/icons-material/KeyboardDoubleArrowRight';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { TreeRenderer } from "../Renderer/TreeRenderer";
-import { FieldValue } from "../utilities/treeTypes";
-import { TemplateField } from "../interfaces/iTemplateField";
+import { TreeRenderer } from "./Renderer/TreeRenderer";
+import { FieldValue } from "./utilities/treeTypes";
+import { TemplateField } from "./interfaces/iTemplateField";
+import { useTemplate } from "../../context/TemplateContext";
+import { extractValuesFromTemplate } from "../../utils/templates/templateParser";
+
 interface TreeItem {
   id: number;
   values: Record<string, FieldValue>;
@@ -28,14 +31,18 @@ interface DynamicTreeProps {
   schema: TemplateField;
   initialValues: Record<string, FieldValue>;
   itemLabel?: string; // Optional custom label for each item (default: item)
+  templateText?: string; // The raw template text loaded from the editor
 }
 
 const DynamicTree: React.FC<DynamicTreeProps> = ({ 
   title, 
   schema, 
   initialValues,
-  itemLabel = "item"
+  itemLabel = "item",
+  templateText
 }) => {
+  const { selectedTemplate } = useTemplate();
+
   const [count, setCount] = useState<number>(2);
   const [treeItems, setTreeItems] = useState<TreeItem[]>([
     { id: 1, values: { ...initialValues } },
@@ -61,6 +68,25 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       setCurrentPage(totalPages);
     }
   }, [count, totalPages, currentPage]);
+
+  useEffect(() => {
+    if (selectedTemplate) {
+      console.log("selected template in dynamic: ", selectedTemplate);
+      
+      // Use the schema id as the category identifier (e.g. "glass", "hudbit", etc.)
+      const extractedValues = extractValuesFromTemplate(selectedTemplate, schema, schema.id);
+      // Merge the extracted values into every tree item
+      setTreeItems(prevItems =>
+        prevItems.map(item => ({
+          ...item,
+          values: {
+            ...item.values,
+            ...extractedValues,
+          },
+        }))
+      );
+    }
+  }, [selectedTemplate, schema]);
 
   // Update the count of tree items
   const handleCountChange = (newCount: number) => {

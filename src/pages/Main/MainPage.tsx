@@ -6,7 +6,7 @@ import { Box, Button, Chip, Divider, Stack, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import EditorTextArea from "../../components/Editor/EditorTextArea";
 import EditorControls from "../../components/Settings/EditorControls";
-import DynamicTree from "../../components/Trees/ExampleTree/DynamicTree";
+import DynamicTree from "../../components/Trees/DynamicTree";
 import {
   initialGlassValues,
   initialHudbitValues,
