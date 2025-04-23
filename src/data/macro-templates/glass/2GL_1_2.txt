@@ -1,0 +1,3 @@
+{{countField}} glass, merket 1 -{{countField}}
+ 1: {{x}}  gryn i #1
+ 2: {{x}}  gryn i #2

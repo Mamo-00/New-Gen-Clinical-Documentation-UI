@@ -1,0 +1,3 @@
+{{countField}} glass:
+Portiobiopsi: {{vevsbiterCount}} lysbrune vevsbiter, måler fra {{hoyde}} - {{bredde}} mm i # 1
+Cervix utskrap: Fragmentert materiale i #2

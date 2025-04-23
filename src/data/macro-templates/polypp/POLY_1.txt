@@ -1,0 +1,4 @@
+{{polyppType}} polypp {{overallMeasurement}} mm, {{distribution}}.
+{{polyppType}} polypp. Polypphodet {{polyppHeadMeasurement}} mm, stilk måler {{stilkMeasurement}} mm. {{distribution}}
+{{polyppType}} polypp, måler {{fragMeasurementA}} + {{fragMeasurementB}} + {{fragMeasurementC}} mm i #1
+{{additionalNotes}}

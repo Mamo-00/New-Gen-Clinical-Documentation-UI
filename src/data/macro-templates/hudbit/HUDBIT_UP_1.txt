@@ -1,0 +1,1 @@
+{{variant}} {{primaryMeasurement}} mm med ca. {{lesjonMeasurement}} mm stor {{lesjonDescription}} pigmentering, {{segmentationType}} i #1. 

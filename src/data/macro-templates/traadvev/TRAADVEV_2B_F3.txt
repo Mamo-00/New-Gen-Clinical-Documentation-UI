@@ -1,0 +1,4 @@
+{{vevsbiterCount}} trådformede vevsbiter, {{measurement}} mm, {{distribution}}.
+1: {{segment1Count}} biter, {{segment1Measurement}} mm
+2: {{segment2Count}} biter {{segment2Measurement}} mm
+Farges {{colorInfo}}

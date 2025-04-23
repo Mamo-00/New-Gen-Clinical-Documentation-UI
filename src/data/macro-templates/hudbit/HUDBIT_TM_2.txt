@@ -1,0 +1,1 @@
+{{variant}} {{primaryMeasurement}} mm, {{lesjonMeasurement}} mm lesjon. Tusjes som vist på tegning i henhold til trådmerking, {{segmentCount}} tverrsnitt i #1.

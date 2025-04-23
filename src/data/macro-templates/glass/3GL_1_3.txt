@@ -1,0 +1,4 @@
+{{countField}} glass, merket {{glassValue}}-{{blokker}}. 
+1: Stanse, {{hoyde}}x{{bredde}}x{{lengde}} mm i #1 
+2: Stanse, {{hoyde}}x{{bredde}}x{{lengde}} mm i #2 
+3: Stanse, {{hoyde}}x{{bredde}}x{{lengde}} mm i #3

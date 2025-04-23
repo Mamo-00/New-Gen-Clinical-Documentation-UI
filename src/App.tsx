@@ -3,6 +3,7 @@ import { CssBaseline, ThemeProvider } from "@mui/material";
 import { theme } from "./theme";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { EditorProvider } from "./context/EditorContext";
+import { TemplateProvider } from "./context/TemplateContext";
 import LoginPage from "./pages/Login/LoginPage";
 import { useAppSelector, useAppDispatch } from "./app/hooks";
 import { fetchUserData, logoutUser, selectUser } from "./features/userSlice";
@@ -18,7 +19,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-
       if (firebaseUser) {
         await dispatch(fetchUserData(firebaseUser.uid)); // Fetch user data
       } else {
@@ -46,12 +46,20 @@ const App: React.FC = () => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <EditorProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={user ? <MainPage /> : <Navigate to="/login" />} />
-            <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
-          </Routes>
-        </BrowserRouter>
+        <TemplateProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route
+                path="/"
+                element={user ? <MainPage /> : <Navigate to="/login" />}
+              />
+              <Route
+                path="/login"
+                element={user ? <Navigate to="/" /> : <LoginPage />}
+              />
+            </Routes>
+          </BrowserRouter>
+        </TemplateProvider>
       </EditorProvider>
     </ThemeProvider>
   );

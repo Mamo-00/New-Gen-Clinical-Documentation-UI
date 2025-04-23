@@ -94,9 +94,18 @@ const EditorTextArea: React.FC<EditorTextAreaProps> = ({ editorId }) => {
    useEffect(() => {
     const view = editorRef.current;
     if (!view) return;
+    
     // Update logic using localEditorRef
     const currentContent = view.state.doc.toString();
+    /* console.log(`EditorTextArea (${editorId}) content update check:`, {
+      current: currentContent.substring(0, 50) + (currentContent.length > 50 ? '...' : ''),
+      new: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+      isDifferent: currentContent !== content,
+      hasFocus: view.hasFocus
+    }); */
+    
     if (currentContent !== content && !view.hasFocus) {
+      //console.log(`Updating editor (${editorId}) content`);
       view.dispatch({
         changes: {
           from: 0,
@@ -105,7 +114,7 @@ const EditorTextArea: React.FC<EditorTextAreaProps> = ({ editorId }) => {
         },
       });
     }
-  }, [content]);
+  }, [content, editorId]);
 
   const handleCloseContextMenu = () => {
     setContextMenu(null);

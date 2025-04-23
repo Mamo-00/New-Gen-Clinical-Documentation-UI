@@ -201,6 +201,10 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({
     // Implement undo logic (if needed)
   };
 
+  const handleRedo = () => {
+    // Implement undo logic (if needed)
+  };
+
   const setSpellCheckEnabledAndPersist = (enabled: boolean) => {
     setSpellCheckEnabled(enabled);
     if (user) {

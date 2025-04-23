@@ -1,0 +1,1 @@
+{{variant}}, {{primaryMeasurement}} mm. {{lesjonDescription}} overflate , {{segmentCount}} tverrsnitt i #1

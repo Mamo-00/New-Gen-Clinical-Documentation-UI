@@ -12,21 +12,31 @@ import {
   DialogActions,
   Box,
   Typography,
+  CircularProgress,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
 } from "@mui/material";
 import { TextSnippetOutlined } from "@mui/icons-material";
+import { templates as availableTemplates, TemplateInfo } from "../../utils/templates/templateManifest";
+import { useTemplate, TemplateData } from "../../context/TemplateContext";
 
-interface TemplateManagerProps {
-  showButtonText: boolean;
-}
-
-const TemplateManager: React.FC<TemplateManagerProps> = ({ showButtonText }) => {
+const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText }) => {
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectUser);
-  const templates = user?.templates || [];
-  
+  const userTemplates = user?.templates || [];
+  const { setContent: setEditorContent } = useEditor();
+  const { setSelectedTemplate } = useTemplate();
+
   const [showTemplates, setShowTemplates] = useState(false);
   const [newTemplate, setNewTemplate] = useState({ name: "", content: "" });
-  const { editorRef } = useEditor();
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // New: Target editor selection (optional)
+  const [targetEditorId, setTargetEditorId] = useState("makroskopisk");
+  const availableEditorIds = ["makroskopisk", "mikroskopisk", "konklusjon"];
 
   const handleAddTemplate = () => {
     if (newTemplate.name && newTemplate.content && user) {
@@ -35,22 +45,35 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ showButtonText }) => 
     }
   };
 
-  const insertTemplate = (templateContent: string) => {
-    const view = editorRef.current;
-    if (view) {
-      const selection = view.state.selection.ranges[0];
-      view.dispatch({
-        changes: {
-          from: selection.from,
-          to: selection.to,
-          insert: templateContent
-        },
-        selection: {
-          anchor: selection.from + templateContent.length
-        }
-      });
-      view.focus();
+  // Fetch a template text from its URL and then update the context with the text and category.
+  const fetchAndSetTemplate = async (templateInfo: TemplateInfo) => {
+    setLoadingTemplate(true);
+    setError(null);
+    try {
+      const response = await fetch(templateInfo.url);
+      if (!response.ok) {
+        throw new Error("Failed to load template");
+      }
+      const content = await response.text();
+      // Update the global template data:
+      const templateData: TemplateData = {
+        text: content,
+        category: templateInfo.category,
+      };
+      setSelectedTemplate(templateData);
+      // Optionally, if you want to overwrite the content in a specific editor:
+      setEditorContent(targetEditorId, content);
+    } catch (err: any) {
+      setError(err.message || "Unknown error");
+    } finally {
+      setLoadingTemplate(false);
     }
+  };
+
+  // Optionally, for user-created templates:
+  const insertTemplateIntoEditor = (templateContent: string, category: string) => {
+    setSelectedTemplate({ text: templateContent, category });
+    setEditorContent(targetEditorId, templateContent);
   };
 
   return (
@@ -62,41 +85,55 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ showButtonText }) => 
         size="small"
         sx={{
           minWidth: showButtonText ? "auto" : "40px",
-          "& .MuiButton-startIcon": {
-            mr: showButtonText ? 1 : 0,
-          },
+          "& .MuiButton-startIcon": { mr: showButtonText ? 1 : 0 },
         }}
       >
         {showButtonText ? "Maler" : ""}
       </Button>
-      <Dialog open={showTemplates} onClose={() => setShowTemplates(false)}>
+      <Dialog open={showTemplates} onClose={() => setShowTemplates(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Organiser Maler</DialogTitle>
         <DialogContent>
           <TextField
             label="Navn på mal"
             value={newTemplate.name}
-            onChange={(e) =>
-              setNewTemplate({ ...newTemplate, name: e.target.value })
-            }
+            onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
             fullWidth
             sx={{ my: 1 }}
           />
           <TextField
             label="Innhold"
             value={newTemplate.content}
-            onChange={(e) =>
-              setNewTemplate({ ...newTemplate, content: e.target.value })
-            }
+            onChange={(e) => setNewTemplate({ ...newTemplate, content: e.target.value })}
             fullWidth
             multiline
             rows={4}
             sx={{ my: 1 }}
           />
-          <Button onClick={handleAddTemplate} variant="outlined">
+          <Button onClick={handleAddTemplate} variant="outlined" sx={{ my: 1 }}>
             Legg til mal
           </Button>
-          <Box sx={{ maxHeight: "400px", overflowY: "auto" }}>
-            {templates.map((template, index) => (
+
+          <FormControl fullWidth sx={{ my: 1 }}>
+            <InputLabel id="target-editor-label">Velg Editor</InputLabel>
+            <Select
+              labelId="target-editor-label"
+              value={targetEditorId}
+              label="Velg Editor"
+              onChange={(e) => setTargetEditorId(e.target.value)}
+            >
+              {availableEditorIds.map((editorId) => (
+                <MenuItem key={editorId} value={editorId}>
+                  {editorId}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Box sx={{ maxHeight: "300px", overflowY: "auto", mt: 2 }}>
+            <Typography variant="subtitle1" sx={{ mb: 1 }}>
+              Standard Maler:
+            </Typography>
+            {availableTemplates.map((temp, index) => (
               <Box
                 key={index}
                 sx={{
@@ -104,18 +141,53 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ showButtonText }) => 
                   justifyContent: "space-between",
                   alignItems: "center",
                   mb: 1,
+                  p: 1,
+                  border: "1px solid #ccc",
+                  borderRadius: 1,
                 }}
               >
-                <Typography variant="body1">{template.name}</Typography>
-                <Button
-                  onClick={() => insertTemplate(template.content)}
-                  size="medium"
-                  variant="outlined"
-                >
-                  Sett in
+                <Typography variant="body1">
+                  {temp.name} ({temp.category})
+                </Typography>
+                <Button onClick={() => fetchAndSetTemplate(temp)} size="small" variant="outlined">
+                  Velg
                 </Button>
               </Box>
             ))}
+            {userTemplates.length > 0 && (
+              <>
+                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
+                  Egne Maler:
+                </Typography>
+                {userTemplates.map((template, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mb: 1,
+                      p: 1,
+                      border: "1px solid #ccc",
+                      borderRadius: 1,
+                    }}
+                  >
+                    <Typography variant="body1">{template.name}</Typography>
+                    <Button
+                      onClick={() => {
+                        insertTemplateIntoEditor(template.content, "custom");
+                      }}
+                      size="small"
+                      variant="outlined"
+                    >
+                      Velg
+                    </Button>
+                  </Box>
+                ))}
+              </>
+            )}
+            {loadingTemplate && <CircularProgress size={24} />}
+            {error && <Typography color="error">{error}</Typography>}
           </Box>
         </DialogContent>
         <DialogActions>

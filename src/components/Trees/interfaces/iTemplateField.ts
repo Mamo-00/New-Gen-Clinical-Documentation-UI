@@ -4,7 +4,7 @@ export interface TemplateField {
     id: string;
     label?: string;
     type: "container" | "text" | "number" | "checkbox" | "dropdown";
-    countField?: string;
+    countField?: number;
     defaultValue?: FieldValue;
     unit?: string;
     options?: string[]; // For dropdown fields
@@ -15,4 +15,5 @@ export interface TemplateField {
     helpText?: string;
     layout?: string;
     isIndented?: boolean;
+    excluded?: boolean; // Used to mark fields that should be excluded from rendering
   }

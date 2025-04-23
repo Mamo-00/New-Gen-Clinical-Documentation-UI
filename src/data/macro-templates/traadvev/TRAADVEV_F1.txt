@@ -1,0 +1,1 @@
+{{vevsbiterCount}} trådformede vevsbiter, {{measurement}} mm i #1. Farges {{colorInfo}}
