@@ -1,106 +1,111 @@
-import { TemplateField } from './../../components/Trees/interfaces/iTemplateField';
+// src/utils/templates/templateParser.ts
+import { TemplateField } from "../../components/Trees/interfaces/iTemplateField";
 import { FieldValue } from "../../components/Trees/utilities/treeTypes";
+import { flattenSchema } from "./flattenSchema";
 
 /**
- * Extract values from a template string based on known patterns and category.
- * The function uses the schema's id as a category identifier:
- * - "glass": Extract dimensions (2D/3D) and glass identifier.
- * - "hudbit": Extract measurements and variant.
- * - "traadvev": Extract a measurement and optionally other fields.
- * - "polypp": Extract overall and specific measurements.
+ * Extracts placeholder keys from the template text based on metadata markers.
+ * For each marker, it looks up the field in the flattened schema (if provided)
+ * and assigns a default value according to the field type.
  *
- * @param template - The raw template text with placeholders.
- * @param schema - The template schema (can be used for future extensions).
- * @param category - Category identifier ("glass", "hudbit", "traadvev", "polypp").
- * @returns A record with field names as keys and parsed values.
+ * @param template - The raw template text containing placeholder metadata.
+ * @param schema - The template schema containing nested field definitions.
+ * @returns An object mapping field names to their default values.
  */
 export function extractValuesFromTemplate(
   template: string,
-  schema: TemplateField,
-  category: string
+  schema?: TemplateField
 ): Record<string, FieldValue> {
-  let values: Record<string, FieldValue> = {};
+  const values: Record<string, FieldValue> = {};
+  
+  // Extract all placeholders along with their line context
+  const placeholdersWithContext = extractPlaceholdersWithContext(template);
+  
+  // If a schema is provided, flatten it:
+  console.log("updatetemp schema: ", schema);
+  
+  const flatSchema = schema ? flattenSchema(schema) : {};
 
-  switch (category) {
-    case "glass": {
-      // Look for 3D dimensions first: e.g., "12x15x20mm"
-      const dimensionRegex3D = /(\d+)[xX](\d+)[xX](\d+)\s*mm/;
-      // Then look for 2D dimensions: e.g., "12x15mm"
-      const dimensionRegex2D = /(\d+)[xX](\d+)\s*mm/;
-      const match3D = template.match(dimensionRegex3D);
-      if (match3D) {
-        values["hoyde"] = Number(match3D[1]);   // Height
-        values["bredde"] = Number(match3D[2]);   // Width
-        values["lengde"] = Number(match3D[3]);   // Length
-      } else {
-        const match2D = template.match(dimensionRegex2D);
-        if (match2D) {
-          values["bredde"] = Number(match2D[1]); // Width
-          values["lengde"] = Number(match2D[2]); // Length
-        }
-      }
-      // Optionally extract glass identifier, e.g. "Glass: XYZ"
-      const glassValueRegex = /Glass:\s*(\S+)/i;
-      const glassMatch = template.match(glassValueRegex);
-      if (glassMatch) {
-        values["glassValue"] = glassMatch[1];
-      }
-      break;
+  // Process each placeholder with its context
+  placeholdersWithContext.forEach(({ placeholder, lineNumber }) => {
+    const fieldKey = placeholder;
+    
+    // For placeholders in numbered lines, we'll create indexed versions
+    // but also keep the original for backward compatibility
+    let fieldKeyToUse = fieldKey;
+    
+    // If this placeholder is in a numbered line, create an indexed version
+    if (lineNumber > 0) {
+      fieldKeyToUse = `${fieldKey}_${lineNumber}`;
     }
-    case "hudbit": {
-      // For hudbit, extract measurements and variant.
-      // E.g., "Måling1: 12mm" for primaryMeasurement and "Måling2: 8mm" for lesjonMeasurement.
-      const primaryRegex = /Måling1:\s*(\d+)\s*mm/i;
-      const lesjonRegex = /Måling2:\s*(\d+)\s*mm/i;
-      const primaryMatch = template.match(primaryRegex);
-      if (primaryMatch) {
-        values["primaryMeasurement"] = Number(primaryMatch[1]);
+    
+    if (flatSchema[fieldKey]) {
+      const fieldType = flatSchema[fieldKey].type;
+      let defaultValue: FieldValue;
+      
+      switch (fieldType) {
+        case "number":
+          defaultValue = flatSchema[fieldKey].defaultValue !== undefined ? flatSchema[fieldKey].defaultValue : 0;
+          break;
+        case "checkbox":
+          defaultValue = flatSchema[fieldKey].defaultValue !== undefined ? flatSchema[fieldKey].defaultValue : false;
+          break;
+        default: // "text", "dropdown", etc.
+          defaultValue = flatSchema[fieldKey].defaultValue !== undefined ? flatSchema[fieldKey].defaultValue : "";
+          break;
       }
-      const lesjonMatch = template.match(lesjonRegex);
-      if (lesjonMatch) {
-        values["lesjonMeasurement"] = Number(lesjonMatch[1]);
+      
+      // Store both the indexed version and the original (if they differ)
+      values[fieldKeyToUse] = defaultValue;
+      
+      // If it's an indexed version and different from the original field key,
+      // also store the non-indexed version for backward compatibility
+      if (fieldKeyToUse !== fieldKey) {
+        values[fieldKey] = defaultValue;
       }
-      // Extract variant if provided e.g. "Variant: Hudbit"
-      const variantRegex = /Variant:\s*(\w+)/i;
-      const variantMatch = template.match(variantRegex);
-      if (variantMatch) {
-        values["variant"] = variantMatch[1];
+    } else {
+      // Fallback if the field key isn't found in the schema.
+      values[fieldKeyToUse] = "";
+      
+      // Same as above, store both versions
+      if (fieldKeyToUse !== fieldKey) {
+        values[fieldKey] = "";
       }
-      break;
     }
-    case "traadvev": {
-      // For trådvev, sample extraction: extract a generic measurement.
-      const measurementRegex = /Measurement:\s*(\d+)/i;
-      const measurementMatch = template.match(measurementRegex);
-      if (measurementMatch) {
-        values["measurement"] = Number(measurementMatch[1]);
-      }
-      // Extend with additional trådvev-specific parsing as needed.
-      break;
-    }
-    case "polypp": {
-      // For polypp, extract overall measurement and specific parts.
-      const overallRegex = /Overall:\s*(\d+)\s*mm/i;
-      const headRegex = /PolyppHead:\s*(\d+)\s*mm/i;
-      const stilkRegex = /Stilk:\s*(\d+)\s*mm/i;
-      const overallMatch = template.match(overallRegex);
-      if (overallMatch) {
-        values["overallMeasurement"] = Number(overallMatch[1]);
-      }
-      const headMatch = template.match(headRegex);
-      if (headMatch) {
-        values["polyppHeadMeasurement"] = Number(headMatch[1]);
-      }
-      const stilkMatch = template.match(stilkRegex);
-      if (stilkMatch) {
-        values["stilkMeasurement"] = Number(stilkMatch[1]);
-      }
-      // Additional polypp fields can be added similarly.
-      break;
-    }
-    default:
-      // No extraction logic; return an empty object.
-      break;
-  }
+  });
+  
   return values;
+}
+
+/**
+ * Extract all placeholders from the template text and determine their line context.
+ * If a placeholder appears in a numbered line (e.g., "1: {{placeholder}}"), 
+ * we associate it with that line number.
+ */
+export function extractPlaceholdersWithContext(
+  template: string
+): Array<{ placeholder: string; lineNumber: number }> {
+  const result: Array<{ placeholder: string; lineNumber: number }> = [];
+  
+  // Split the template into lines for analysis
+  const lines = template.split('\n');
+  
+  lines.forEach(line => {
+    // Check if this is a numbered line (e.g., "1:", "2:", etc.)
+    const lineNumberMatch = line.match(/^(\d+)\s*:/);
+    const lineNumber = lineNumberMatch ? parseInt(lineNumberMatch[1]) : 0;
+    
+    // Extract all placeholders in this line
+    const placeholderRegex = /\{\{\s*([^}]+?)\s*\}\}/g;
+    let match;
+    
+    while ((match = placeholderRegex.exec(line)) !== null) {
+      const placeholder = match[1].trim();
+      
+      // Add to result with line context
+      result.push({ placeholder, lineNumber });
+    }
+  });
+  
+  return result;
 }

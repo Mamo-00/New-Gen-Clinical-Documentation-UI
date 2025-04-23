@@ -34,6 +34,11 @@ export const TreeRenderer: React.FC<TreeRendererProps> = ({
   // Calculate indentation based on depth – for example, 16px per level if spacing(2) equals 16px.
   const indent = schema.isIndented ? theme.spacing(depth * 1.0) : 0;
 
+  // Skip rendering if the field is marked as excluded
+  if (schema.excluded) {
+    return null;
+  }
+
   // Conditional rendering: if this node should only appear when a dependent field has a given value.
   if (schema.conditionalOn) {
     const dependentValue = values[schema.conditionalOn];
@@ -79,7 +84,10 @@ export const TreeRenderer: React.FC<TreeRendererProps> = ({
             <TextField
               label={schema.label}
               value={values[schema.id] ?? (schema.defaultValue || "")}
-              onChange={(e) => onChange(schema.id, e.target.value)}
+              onChange={(e) => {
+                console.log(`Text field changed: ${schema.id} = ${e.target.value}`);
+                onChange(schema.id, e.target.value);
+              }}
               fullWidth
               size="small"
               sx={{ width: 100 }}
@@ -103,9 +111,14 @@ export const TreeRenderer: React.FC<TreeRendererProps> = ({
               label={schema.label}
               type="number"
               value={values[schema.id] ?? (schema.defaultValue || "")}
-              onChange={(e) => onChange(schema.id, Number(e.target.value))}
+              slotProps={{ htmlInput: { min: 1 } }}
+              onChange={(e) => {
+                const numValue = Number(e.target.value);
+                console.log(`Number field changed: ${schema.id} = ${numValue}`);
+                onChange(schema.id, numValue);
+              }}
               size="small"
-              sx={{ width: 65, my: theme.spacing(1) }}
+              sx={{ width: 85, mb: theme.spacing(1) }}
             />
           </Tooltip>
           {schema.unit && (
@@ -124,7 +137,10 @@ export const TreeRenderer: React.FC<TreeRendererProps> = ({
               control={
                 <Checkbox
                   checked={checked}
-                  onChange={(e) => onChange(schema.id, e.target.checked)}
+                  onChange={(e) => {
+                    console.log(`Checkbox changed: ${schema.id} = ${e.target.checked}`);
+                    onChange(schema.id, e.target.checked);
+                  }}
                 />
               }
               label={schema.label}
@@ -146,9 +162,19 @@ export const TreeRenderer: React.FC<TreeRendererProps> = ({
                 defaultValue={""}
                 value={values[schema.id] ?? (schema.defaultValue || "")}
                 onChange={(e) => {
-                  const selectedValue = e.target.value; // Get the selected value
-                  console.log("Selected Value:", selectedValue); // Log it to the console
-                  onChange(schema.id, selectedValue); // Call the onChange function
+                  const selectedValue = e.target.value;
+                  console.log(`Dropdown changed: ${schema.id} = ${selectedValue}`);
+                  
+                  // Special logic for traadvev distribution field
+                  if (schema.id === "distribution" && selectedValue === "fordeles i #1 og #2") {
+                    // Also update vevsbiterCount to 2 when distribution is "fordeles i #1 og #2"
+                    onChange("vevsbiterCount", 2);
+                  } else if (schema.id === "distribution" && selectedValue === "i #1") {
+                    // Set vevsbiterCount to 1 when distribution is "i #1"
+                    onChange("vevsbiterCount", 1);
+                  }
+                  
+                  onChange(schema.id, selectedValue);
                 }}
                 sx={{ width: 120, my: 1 }}
               >

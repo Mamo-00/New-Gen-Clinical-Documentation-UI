@@ -7,24 +7,14 @@ import Grid from "@mui/material/Grid2";
 import EditorTextArea from "../../components/Editor/EditorTextArea";
 import EditorControls from "../../components/Settings/EditorControls";
 import DynamicTree from "../../components/Trees/DynamicTree";
-import {
-  initialGlassValues,
-  initialHudbitValues,
-  initialPolyppValues,
-  initialTraadvevValues,
-} from "../../components/Trees/utilities/initialValues";
-import {
-  glass,
-  hudbit,
-  traadvev,
-  polypp,
-} from "../../components/Trees/utilities/tree-schema";
 import { useEditor } from "../../context/EditorContext";
 import { useContainerWidth } from "../../utils/hooks/useContainerWidth";
 import { Save } from "@mui/icons-material";
 import { Undo } from "@mui/icons-material";
+import { useTemplate } from "../../context/TemplateContext";
+import { getSchemaAndInitialValues } from "../../utils/templates/getSchemaAndValues";
 
-interface ToolbarProps {
+interface MainToolbarProps {
   editorId: string;
   title: string;
 }
@@ -36,6 +26,8 @@ const MainPage: React.FC = () => {
   const { handleSave, handleUndo } = useEditor();
   const { containerRef, showButtonText } = useContainerWidth(375);
 
+  const { selectedTemplate } = useTemplate();
+
   const user = useAppSelector(selectUser);
 
   const handleLogout = async () => {
@@ -44,7 +36,7 @@ const MainPage: React.FC = () => {
     navigate("/login");
   };
 
-  const Toolbar: React.FC<ToolbarProps> = ({ editorId, title }) => {
+  const Toolbar: React.FC<MainToolbarProps> = ({ editorId, title }) => {
     return (
       <Stack direction="row" justifyContent="space-between" sx={{ py: 1 }}>
         <Typography variant="h4" fontWeight={"bold"}>
@@ -272,12 +264,30 @@ const MainPage: React.FC = () => {
         </Grid>
 
         <Grid size={4} sx={{ p: 2 }}>
-          <DynamicTree
-            title={`Makroskopi - ${glass.label}`}
-            schema={glass}
-            initialValues={initialGlassValues}
-            itemLabel="glass"
-          />
+        {selectedTemplate ? (
+            // If a template is selected, get the corresponding schema and initial values.
+            (() => {
+              const { schema, initialValues } = getSchemaAndInitialValues(selectedTemplate.category);
+              
+              return (
+                <DynamicTree
+                  title={`Makroskopi - ${selectedTemplate.category}`}
+                  schema={schema}
+                  initialValues={initialValues}
+                  editorId="makroskopisk"
+                  itemLabel={selectedTemplate.category}
+                />
+              );
+            })()
+          ) : (
+            // Else, show a friendly prompt to the user.
+            <Box sx={{ p: 2, border: '1px solid grey', borderRadius: 1 }}>
+              <Typography variant="body1">
+                Ingen mal er valgt. Vennligst velg en mal via "Maler" knappen på toppen av siden for å
+                vise treet.
+              </Typography>
+            </Box>
+          )}
         </Grid>
       </Grid>
     </Box>

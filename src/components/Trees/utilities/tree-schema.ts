@@ -4,14 +4,14 @@ export const glass: TemplateField = {
   id: "glass",
   type: "container",
   label: "Glass",
-  countField: "antallGlass",
+  countField: 1,
   helpText: "Registrering av glass-specimens",
   layout: "vertical",
   children: [
     {
       id: "glassBlokker",
       type: "container",
-      layout: "horizontal", // Ensures Glass and Blokker are side by side
+      layout: "horizontal", 
       isIndented: false,
       children: [
         {
@@ -25,9 +25,9 @@ export const glass: TemplateField = {
         {
           id: "blokker",
           label: "Blokker",
-          type: "text",
+          type: "number",
           isIndented: false,
-          defaultValue: "#1",
+          defaultValue: 1,
           helpText: "Angi blokk-ID"
         },
       ],
@@ -36,7 +36,7 @@ export const glass: TemplateField = {
       id: "dimensjoner",
       label: "Dimensjoner",
       type: "container",
-      layout: "vertical", // Ensures dimensions are stacked vertically
+      layout: "vertical", 
       isIndented: false,
       helpText: "Angi dimensjoner for glasset",
       children: [
@@ -45,7 +45,7 @@ export const glass: TemplateField = {
           label: "Høyde",
           type: "number",
           isIndented: true,
-          defaultValue: 4,
+          defaultValue: 0,
           unit: "mm",
           helpText: "Høyde i millimeter"
         },
@@ -54,7 +54,7 @@ export const glass: TemplateField = {
           label: "Bredde",
           type: "number",
           isIndented: true,
-          defaultValue: 1,
+          defaultValue: 0,
           unit: "mm",
           helpText: "Bredde i millimeter"
         },
@@ -77,6 +77,14 @@ export const glass: TemplateField = {
       options: ["bredbaset", "stilket", "annet"],
       isIndented: false,
       helpText: "Velg utseende for glasset"
+    },
+    {
+      id: "grynAmount",
+      label: "Antall Gryn",
+      type: "number",
+      defaultValue: 0,
+      isIndented: false,
+      helpText: "Antall gryn i blokken"
     },
     {
       id: "orientert",
@@ -120,6 +128,7 @@ export const hudbit: TemplateField = {
   label: "Hudbit",
   type: "container",
   layout: "vertical",
+  countField: 1,
   isIndented: false,
   helpText: "Registrering av hudbit-specimen",
   children: [
@@ -218,6 +227,7 @@ export const traadvev: TemplateField = {
   label: "Trådvev",
   type: "container",
   layout: "vertical",
+  countField: 1,
   isIndented: false,
   helpText: "Registrering av trådvev-specimen",
   children: [
@@ -226,7 +236,7 @@ export const traadvev: TemplateField = {
       label: "Antall vevsbiter",
       type: "number",
       isIndented: true,
-      defaultValue: 0,
+      defaultValue: 2,
       helpText: "Angi antall trådformede vevsbiter (x)",
     },
     {
@@ -234,7 +244,7 @@ export const traadvev: TemplateField = {
       label: "Måling",
       type: "number",
       isIndented: true,
-      defaultValue: 0,
+      defaultValue: 1,
       unit: "mm",
       helpText: "Måling (mm) av vevsbitene",
     },
@@ -243,7 +253,7 @@ export const traadvev: TemplateField = {
       label: "Fordeling",
       type: "dropdown",
       isIndented: true,
-      defaultValue: "i #1",
+      defaultValue: "fordeles i #1 og #2",
       options: ["i #1", "fordeles i #1 og #2"],
       helpText:
         "Velg om vevsbitene er samlet (i #1) eller fordelt over flere segmenter",
@@ -273,14 +283,14 @@ export const traadvev: TemplateField = {
               helpText: "Antall biter",
               type: "number",
               isIndented: true,
-              defaultValue: 0,
+              defaultValue: 1,
             },
             {
               id: "segment1Measurement",
               label: "Måling",
               type: "number",
               isIndented: true,
-              defaultValue: 0,
+              defaultValue: 1,
               unit: "mm",
               helpText: "Måling av segment 1 i millimeter",
             },
@@ -300,14 +310,14 @@ export const traadvev: TemplateField = {
               helpText: "Antall biter",
               type: "number",
               isIndented: true,
-              defaultValue: 0,
+              defaultValue: 1,
             },
             {
               id: "segment2Measurement",
               label: "Måling",
               type: "number",
               isIndented: true,
-              defaultValue: 0,
+              defaultValue: 1,
               unit: "mm",
               helpText: "Måling av segment 2 i millimeter",
             },
@@ -320,7 +330,7 @@ export const traadvev: TemplateField = {
       label: "Fargeinformasjon",
       type: "text",
       isIndented: true,
-      defaultValue: "",
+      defaultValue: "Farges MT, Retic og BB",
       helpText:
         "Oppgi eventuelle fargeanvisninger (f.eks. 'Farges ABPAS' eller 'Farges MT, Retic og BB')",
     },
@@ -340,6 +350,7 @@ export const polypp: TemplateField = {
   label: "Polypp",
   type: "container",
   layout: "vertical",
+  countField: 1,
   isIndented: false,
   helpText: "Registrering av polypp-specimen",
   children: [

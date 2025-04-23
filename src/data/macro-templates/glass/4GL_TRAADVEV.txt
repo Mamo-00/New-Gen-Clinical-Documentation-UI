@@ -1,0 +1,5 @@
+{{countField}} glass, merket 1 - {{countField}}, med trådformete vevsbiter: 
+1: {{measurement}} mm i #{{blokker}} 
+2: {{measurement}} mm i #{{blokker}} 
+3: {{measurement}} mm i #{{blokker}} 
+4: {{measurement}} mm i #{{blokker}}

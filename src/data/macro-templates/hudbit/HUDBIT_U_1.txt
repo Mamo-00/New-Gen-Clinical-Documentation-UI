@@ -1,0 +1,1 @@
+{{variant}}, {{primaryMeasurement}} mm. Uregelmessig lesjon/pigmentering/overflate, {{lesjonMeasurement}} mm, {{segmentationType}} i #1

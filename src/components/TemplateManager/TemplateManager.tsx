@@ -20,13 +20,13 @@ import {
 } from "@mui/material";
 import { TextSnippetOutlined } from "@mui/icons-material";
 import { templates as availableTemplates, TemplateInfo } from "../../utils/templates/templateManifest";
-import { useTemplate } from "../../context/TemplateContext";
+import { useTemplate, TemplateData } from "../../context/TemplateContext";
 
 const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText }) => {
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectUser);
   const userTemplates = user?.templates || [];
-  const { editorRef, setContent: setEditorContent } = useEditor(); // useEditor now gives us access to setContent for any editorId
+  const { setContent: setEditorContent } = useEditor();
   const { setSelectedTemplate } = useTemplate();
 
   const [showTemplates, setShowTemplates] = useState(false);
@@ -34,9 +34,8 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
   const [loadingTemplate, setLoadingTemplate] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // New state: target editor id (e.g. "makroskopisk", "mikroskopisk", "konklusjon")
+  // New: Target editor selection (optional)
   const [targetEditorId, setTargetEditorId] = useState("makroskopisk");
-
   const availableEditorIds = ["makroskopisk", "mikroskopisk", "konklusjon"];
 
   const handleAddTemplate = () => {
@@ -46,7 +45,7 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
     }
   };
 
-  // Fetch a template text from its URL and then set it in the selected editor.
+  // Fetch a template text from its URL and then update the context with the text and category.
   const fetchAndSetTemplate = async (templateInfo: TemplateInfo) => {
     setLoadingTemplate(true);
     setError(null);
@@ -56,9 +55,13 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
         throw new Error("Failed to load template");
       }
       const content = await response.text();
-      // Optionally update the global template state:
-      setSelectedTemplate(content);
-      // Overwrite the content in the selected editor.
+      // Update the global template data:
+      const templateData: TemplateData = {
+        text: content,
+        category: templateInfo.category,
+      };
+      setSelectedTemplate(templateData);
+      // Optionally, if you want to overwrite the content in a specific editor:
       setEditorContent(targetEditorId, content);
     } catch (err: any) {
       setError(err.message || "Unknown error");
@@ -67,13 +70,11 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
     }
   };
 
-  // In case you also want to insert a custom (user-created) template into the editor:
-  const insertTemplateIntoEditor = (templateContent: string) => {
-    // Overwrite editor content completely:
+  // Optionally, for user-created templates:
+  const insertTemplateIntoEditor = (templateContent: string, category: string) => {
+    setSelectedTemplate({ text: templateContent, category });
     setEditorContent(targetEditorId, templateContent);
-    // Optionally, if you want to also insert at cursor, you could use editorRef.current.dispatch(...)
   };
-
 
   return (
     <Box>
@@ -112,7 +113,6 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
             Legg til mal
           </Button>
 
-          {/* New: Editor selection dropdown */}
           <FormControl fullWidth sx={{ my: 1 }}>
             <InputLabel id="target-editor-label">Velg Editor</InputLabel>
             <Select
@@ -146,7 +146,9 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
                   borderRadius: 1,
                 }}
               >
-                <Typography variant="body1">{temp.name}</Typography>
+                <Typography variant="body1">
+                  {temp.name} ({temp.category})
+                </Typography>
                 <Button onClick={() => fetchAndSetTemplate(temp)} size="small" variant="outlined">
                   Velg
                 </Button>
@@ -173,9 +175,7 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
                     <Typography variant="body1">{template.name}</Typography>
                     <Button
                       onClick={() => {
-                        // Update the global template and then overwrite the target editor's content.
-                        setSelectedTemplate(template.content);
-                        insertTemplateIntoEditor(template.content);
+                        insertTemplateIntoEditor(template.content, "custom");
                       }}
                       size="small"
                       variant="outlined"
