@@ -14,6 +14,7 @@ import {
 import { flattenSchema } from "../../utils/templates/flattenSchema";
 import TreePagination from "./Pagination/TreePagination";
 
+
 /**
  * Represents a single item in the tree view, containing an ID, line number reference,
  * and a map of field values associated with this item.
@@ -405,7 +406,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
         )
       );
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schema]);
 
   /**
@@ -486,53 +486,114 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       }
 
       const lineNumber = treeItem.lineNumber;
+      console.log(`🔄 Item line number: ${lineNumber}`);
+
+      // Check if the value is actually different from the current value
+      const currentValue = treeItem.values[fieldId];
+      console.log(`🔄 Current value: ${JSON.stringify(currentValue)}, New value: ${JSON.stringify(value)}`);
       
-      // 1. Create updated item values
-      const updatedItemValues = JSON.parse(JSON.stringify(treeItem.values));
+      if (currentValue === value) {
+        console.log(`🔄 Value hasn't changed, skipping update`);
+        return;
+      }
+      
+      // COMPLETELY NEW APPROACH: Start fresh and be extremely explicit
+      console.log(`🔄 Updating tree item values...`);
+      
+      // 1. First, create an updated version of the tree item
+      // Use a clean deep copy approach to avoid any reference issues
+      const updatedItemValues = JSON.parse(JSON.stringify(treeItem.values)) as Record<string, FieldValue>;
+      
+      // 2. Update the specific field
       updatedItemValues[fieldId] = value;
       
-      // Update indexed version if needed
+      // 3. Also update the indexed version if needed
       if (lineNumber > 0 && !fieldId.includes("_")) {
         const indexedKey = `${fieldId}_${lineNumber}`;
         updatedItemValues[indexedKey] = value;
+        console.log(`🔄 Created indexed key: ${indexedKey}=${value}`);
       }
       
-      // 2. Create a new copy of all tree items with the updated item
-      const newTreeItems = [...treeItems];
-      newTreeItems[itemIndex] = {
-        ...newTreeItems[itemIndex],
-        values: updatedItemValues,
-      };
-      
-      // 3. Build template values from complete set of items
-      const templateValues: Record<string, FieldValue> = { countField: count };
-      
-      // Add values from ALL tree items, including the updated one
-      newTreeItems.forEach((item) => {
-        Object.entries(item.values).forEach(([key, val]) => {
-          templateValues[key] = val;
-        });
+      // 4. Update the component state FIRST, before updating the template
+      // This ensures subsequent calls have the updated values
+      console.log(`🔄 Setting tree items state...`);
+      setTreeItems((prevItems) => {
+        const newItems = [...prevItems];
+        newItems[itemIndex] = {
+          ...newItems[itemIndex],
+          values: updatedItemValues,
+        };
+        
+        console.log(`🔄 New tree items structure:`, JSON.stringify(newItems.map(item => ({
+          id: item.id,
+          lineNumber: item.lineNumber,
+          valuesCount: Object.keys(item.values).length
+        })), null, 2));
+        
+        return newItems;
       });
       
-      // 4. Update the template
+      // 5. SEPARATE STEP: Build the values for the template update
+      // Start completely fresh
+      console.log(`🔄 Building template values...`);
+      const templateValues: Record<string, FieldValue> = { countField: count };
+      
+      // 6. First add all values from unchanged tree items
+      console.log(`🔄 Processing ${treeItems.length} tree items for values`);
+      treeItems.forEach((item, idx) => {
+        if (idx !== itemIndex) {
+          // Only process items that are NOT the changed item
+          console.log(`🔄 Processing values from unchanged item ${idx} (line ${item.lineNumber})`);
+          Object.entries(item.values).forEach(([key, val]) => {
+            templateValues[key] = val;
+            console.log(`🔄 Added ${key}=${val} from unchanged item`);
+          });
+        }
+      });
+      
+      // 7. Then explicitly add values from the updated item
+      // This guarantees the new values are used, without any risk of overwriting
+      console.log(`🔄 Adding values from updated item ${itemIndex}`);
+      Object.entries(updatedItemValues).forEach(([key, val]) => {
+        templateValues[key] = val;
+        console.log(`🔄 Added ${key}=${val} from updated item`);
+      });
+      
+      // 8. Update the template with these values
       if (sourceTemplate && selectedTemplate) {
+        console.log(`🔄 Updating template with ${Object.keys(templateValues).length} values`);
         const updatedTemplate = updateTemplateFromTree(
           sourceTemplate,
           templateValues
         );
         
+        console.log(`🔄 Template updated, new length: ${updatedTemplate.length} chars`);
+        
+        // Use direct assignment since the context doesn't accept callbacks
         setSelectedTemplate({
           text: updatedTemplate,
           category: selectedTemplate.category,
         });
-        
+
         setEditorContent(editorId, updatedTemplate);
+        console.log(`🔄 Updated editor content`);
+      } else {
+        console.warn(
+          "Cannot update template - sourceTemplate or selectedTemplate is missing"
+        );
       }
       
-      // 5. Update tree items state
-      setTreeItems(newTreeItems);
+      console.log(`🔄 handleFieldChange COMPLETE`);
     },
-    [treeItems, count, sourceTemplate, selectedTemplate, setSelectedTemplate, setEditorContent, editorId]
+    [
+      treeItems,
+      sourceTemplate,
+      selectedTemplate,
+      setSelectedTemplate,
+      setEditorContent,
+      editorId,
+      count, // Include count as a dependency
+    ]
   );
 
   /**
