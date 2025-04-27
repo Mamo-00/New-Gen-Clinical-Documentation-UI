@@ -12,7 +12,12 @@ export function updateTemplateFromTree(
   originalTemplate: string,
   fieldValues: Record<string, FieldValue>
 ): string {
-  console.log("Field values for update:", fieldValues);
+  console.log("🔄 updateTemplateFromTree START");
+  console.log("🔄 Field values for update:", JSON.stringify(fieldValues, null, 2));
+  
+  // Log all indexed field keys
+  const indexedFields = Object.keys(fieldValues).filter(key => key.includes("_"));
+  console.log("🔄 Indexed fields:", JSON.stringify(indexedFields, null, 2));
   
   // First, handle countField separately to ensure consistency
   let updatedTemplate = originalTemplate;
@@ -25,6 +30,7 @@ export function updateTemplateFromTree(
   
   // Get the final count to determine how many numbered lines we need
   const targetCount = Number(fieldValues.countField) || 0;
+  console.log("🔄 Target count:", targetCount);
   
   // Split the template into lines
   let lines = updatedTemplate.split('\n');
@@ -42,6 +48,8 @@ export function updateTemplateFromTree(
     }
   });
   
+  console.log("🔄 Found numbered lines:", JSON.stringify(numberedLineIndices.map(l => `Line ${l.lineNum} at index ${l.index}`), null, 2));
+  
   // Sort by line number
   numberedLineIndices.sort((a, b) => a.lineNum - b.lineNum);
   
@@ -56,6 +64,7 @@ export function updateTemplateFromTree(
     const match = line.match(lineNumberPattern);
     if (match) {
       const lineNum = parseInt(match[1]);
+      console.log(`🔄 Processing numbered line ${lineNum} at index ${lineIndex}`);
       
       // Process only numbered lines that should be kept
       if (lineNum <= targetCount) {
@@ -72,23 +81,30 @@ export function updateTemplateFromTree(
           
           // Check for indexed value first
           const indexedKey = `${placeholder}_${lineNum}`;
+          
           if (fieldValues[indexedKey] !== undefined) {
+            console.log(`🔄 Line ${lineNum}: Replacing {{${placeholder}}} with indexed value ${JSON.stringify(fieldValues[indexedKey])} from ${indexedKey}`);
             updatedLine = updatedLine.replace(
               new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, 'g'),
               String(fieldValues[indexedKey])
             );
           } else if (fieldValues[placeholder] !== undefined) {
             // Fall back to non-indexed value
+            console.log(`🔄 Line ${lineNum}: Replacing {{${placeholder}}} with non-indexed value ${JSON.stringify(fieldValues[placeholder])} (indexed value not found)`);
             updatedLine = updatedLine.replace(
               new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, 'g'),
               String(fieldValues[placeholder])
             );
+          } else {
+            console.log(`🔄 Line ${lineNum}: No value found for placeholder {{${placeholder}}}`);
           }
         }
         
+        console.log(`🔄 Line ${lineNum} after processing: ${updatedLine}`);
         return updatedLine;
       }
       // Skip lines that should be removed (lineNum > targetCount)
+      console.log(`🔄 Removing line ${lineNum} (exceeds target count ${targetCount})`);
       return null;
     }
     
@@ -104,10 +120,13 @@ export function updateTemplateFromTree(
       if (placeholder === "countField") continue; // Skip countField as it's already handled
       
       if (fieldValues[placeholder] !== undefined) {
+        console.log(`🔄 Non-numbered line: Replacing {{${placeholder}}} with value ${JSON.stringify(fieldValues[placeholder])}`);
         updatedLine = updatedLine.replace(
           new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, 'g'),
           String(fieldValues[placeholder])
         );
+      } else {
+        console.log(`🔄 Non-numbered line: No value found for placeholder {{${placeholder}}}`);
       }
     }
     
@@ -120,9 +139,12 @@ export function updateTemplateFromTree(
       ? numberedLineIndices[numberedLineIndices.length - 1].lineNum 
       : 0;
     
+    console.log(`🔄 Adding ${targetCount - lastExistingLineNum} new numbered lines`);
+    
     for (let i = lastExistingLineNum + 1; i <= targetCount; i++) {
       // Create a new line based on the template line, but with updated line number
       let newLine = templateLine.replace(lineNumberPattern, `${i}:`);
+      console.log(`🔄 New line template for line ${i}: ${newLine}`);
       
       // Replace placeholders with their indexed values if available
       const placeholderPattern = /\{\{\s*([^}]+?)\s*\}\}/g;
@@ -137,19 +159,24 @@ export function updateTemplateFromTree(
         // Check for indexed value
         const indexedKey = `${placeholder}_${i}`;
         if (fieldValues[indexedKey] !== undefined) {
+          console.log(`🔄 New line ${i}: Replacing {{${placeholder}}} with indexed value ${JSON.stringify(fieldValues[indexedKey])}`);
           newLine = newLine.replace(
             new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, 'g'),
             String(fieldValues[indexedKey])
           );
         } else if (fieldValues[placeholder] !== undefined) {
           // Fall back to non-indexed value
+          console.log(`🔄 New line ${i}: Replacing {{${placeholder}}} with non-indexed value ${JSON.stringify(fieldValues[placeholder])}`);
           newLine = newLine.replace(
             new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, 'g'),
             String(fieldValues[placeholder])
           );
+        } else {
+          console.log(`🔄 New line ${i}: No value found for placeholder {{${placeholder}}}`);
         }
       }
       
+      console.log(`🔄 Adding new line ${i}: ${newLine}`);
       lines.push(newLine);
     }
   }
@@ -157,6 +184,7 @@ export function updateTemplateFromTree(
   // Rejoin the lines and return the updated template
   updatedTemplate = lines.join('\n');
   
-  console.log("Updated template:", updatedTemplate);
+  console.log("🔄 Final template:", updatedTemplate);
+  console.log("🔄 updateTemplateFromTree END");
   return updatedTemplate;
 }

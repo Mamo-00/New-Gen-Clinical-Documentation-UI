@@ -58,8 +58,7 @@ interface DynamicTreeProps {
 const initializeTreeItems = (
   count: number,
   initialValues: Record<string, FieldValue>,
-  lineNumbers: number[] = [],
-  schemaId?: string
+  lineNumbers: number[] = []
 ): TreeItem[] => {
   const items: TreeItem[] = [];
 
@@ -143,6 +142,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   // Track whether the current template contains countField placeholder
   const [hasCountFieldPlaceholder, setHasCountFieldPlaceholder] =
     useState<boolean>(false);
+    
 
   // Initialize treeItems with memoization to avoid recalculation
   const [treeItems, setTreeItems] = useState<TreeItem[]>(() =>
@@ -152,6 +152,19 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   // Pagination state - keeps core state while UI logic is in TreePagination.tsx
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(1);
+  
+  // Add a custom setCurrentPage handler for debugging
+  const handlePageChange = useCallback((newPage: number) => {
+    console.log(`📄 Page change requested: from ${currentPage} to ${newPage}`);
+    console.log(`📄 Current tree items state:`, JSON.stringify(treeItems.map(item => ({
+      id: item.id, 
+      lineNumber: item.lineNumber,
+      valuesCount: Object.keys(item.values).length,
+      sampleValues: Object.entries(item.values).slice(0, 2)
+    })), null, 2));
+    
+    setCurrentPage(newPage);
+  }, [currentPage, treeItems]);
 
   /**
    * Calculate the indices for the items to display on the current page.
@@ -160,6 +173,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   const currentItemsIndices = useMemo(() => {
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    console.log(`📄 Calculated page indices: firstItem=${indexOfFirstItem}, lastItem=${indexOfLastItem}`);
     return { indexOfFirstItem, indexOfLastItem };
   }, [currentPage, itemsPerPage]);
 
@@ -195,6 +209,59 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       setCurrentPage(totalPages);
     }
   }, [count, treeItems.length, currentPage, itemsPerPage]);
+
+  /**
+   * Log template and tree item state after page changes
+   * This should help diagnose why template values are being reset
+   */
+  useEffect(() => {
+    console.log(`🔎 PAGE CHANGED: Now on page ${currentPage}`);
+    
+    // Check active tree item values
+    const activeItemIndex = currentItemsIndices.indexOfFirstItem;
+    if (activeItemIndex < treeItems.length) {
+      const activeItem = treeItems[activeItemIndex];
+      console.log(`🔎 Active tree item ${activeItemIndex+1}:`, JSON.stringify({
+        id: activeItem.id,
+        lineNumber: activeItem.lineNumber,
+        values: activeItem.values
+      }, null, 2));
+    }
+    
+    // Log current template text to see if it matches our expectations
+    if (selectedTemplate) {
+      const templateLines = selectedTemplate.text.split('\n');
+      console.log(`🔎 Current template state (${templateLines.length} lines):`);
+      templateLines.forEach((line, i) => {
+        // Only log lines with numbered patterns (e.g., "1:", "2:")
+        if (line.match(/^\d+\s*:/)) {
+          console.log(`🔎 Line ${i+1}: ${line}`);
+        }
+      });
+    }
+    
+    // Check if we have all expected indexed values in each tree item
+    treeItems.forEach((item, idx) => {
+      const lineNumber = item.lineNumber;
+      if (lineNumber > 0) {
+        // Check a few important fields to see if they have proper indexed versions
+        const basicFields = ['measurement', 'blokker'];
+        basicFields.forEach(field => {
+          const hasField = item.values[field] !== undefined;
+          const indexedField = `${field}_${lineNumber}`;
+          const hasIndexedField = item.values[indexedField] !== undefined;
+          
+          if (hasField && !hasIndexedField) {
+            console.warn(`⚠️ Tree item ${idx+1} (line ${lineNumber}): Missing indexed value for ${field}`);
+          }
+          
+          if (hasField && hasIndexedField && item.values[field] !== item.values[indexedField]) {
+            console.warn(`⚠️ Tree item ${idx+1} (line ${lineNumber}): Value mismatch between ${field}=${item.values[field]} and ${indexedField}=${item.values[indexedField]}`);
+          }
+        });
+      }
+    });
+  }, [currentPage, treeItems, selectedTemplate, currentItemsIndices]);
 
   /**
    * Calculate display information for pagination, showing which items
@@ -334,11 +401,11 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
         initializeTreeItems(
           Math.max(lineNumbers.length, 1), // At least one item
           extractedValues,
-          lineNumbers, // Use the detected line numbers
-          schema.id
+          lineNumbers,
         )
       );
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schema]);
 
   /**
@@ -409,92 +476,63 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
    */
   const handleFieldChange = useCallback(
     (itemIndex: number, fieldId: string, value: FieldValue) => {
+      console.log(`🔄 handleFieldChange START: itemIndex=${itemIndex}, fieldId=${fieldId}, value=${JSON.stringify(value)}`);
+      
       // Get the tree item and its line number
       const treeItem = treeItems[itemIndex];
-      if (!treeItem) return;
+      if (!treeItem) {
+        console.error(`🔄 No tree item found at index ${itemIndex}`);
+        return;
+      }
 
       const lineNumber = treeItem.lineNumber;
-
-      // Check if the value is actually different from the current value
-      const currentValue = treeItem.values[fieldId];
       
-      if (currentValue === value) return;
-      
-      // COMPLETELY NEW APPROACH: Start fresh and be extremely explicit
-      
-      // 1. First, create an updated version of the tree item
-      // Use a clean deep copy approach to avoid any reference issues
-      const updatedItemValues = JSON.parse(JSON.stringify(treeItem.values)) as Record<string, FieldValue>;
-      
-      // 2. Update the specific field
+      // 1. Create updated item values
+      const updatedItemValues = JSON.parse(JSON.stringify(treeItem.values));
       updatedItemValues[fieldId] = value;
       
-      // 3. Also update the indexed version if needed
+      // Update indexed version if needed
       if (lineNumber > 0 && !fieldId.includes("_")) {
         const indexedKey = `${fieldId}_${lineNumber}`;
         updatedItemValues[indexedKey] = value;
       }
       
-      // 4. Update the component state FIRST, before updating the template
-      // This ensures subsequent calls have the updated values
-      setTreeItems((prevItems) => {
-        const newItems = [...prevItems];
-        newItems[itemIndex] = {
-          ...newItems[itemIndex],
-          values: updatedItemValues,
-        };
-        return newItems;
-      });
+      // 2. Create a new copy of all tree items with the updated item
+      const newTreeItems = [...treeItems];
+      newTreeItems[itemIndex] = {
+        ...newTreeItems[itemIndex],
+        values: updatedItemValues,
+      };
       
-      // 5. SEPARATE STEP: Build the values for the template update
-      // Start completely fresh
+      // 3. Build template values from complete set of items
       const templateValues: Record<string, FieldValue> = { countField: count };
       
-      // 6. First add all values from unchanged tree items
-      treeItems.forEach((item, idx) => {
-        if (idx !== itemIndex) {
-          // Only process items that are NOT the changed item
-          Object.entries(item.values).forEach(([key, val]) => {
-            templateValues[key] = val;
-          });
-        }
+      // Add values from ALL tree items, including the updated one
+      newTreeItems.forEach((item) => {
+        Object.entries(item.values).forEach(([key, val]) => {
+          templateValues[key] = val;
+        });
       });
       
-      // 7. Then explicitly add values from the updated item
-      // This guarantees the new values are used, without any risk of overwriting
-      Object.entries(updatedItemValues).forEach(([key, val]) => {
-        templateValues[key] = val;
-      });
-      
-      // 8. Update the template with these values
+      // 4. Update the template
       if (sourceTemplate && selectedTemplate) {
         const updatedTemplate = updateTemplateFromTree(
           sourceTemplate,
           templateValues
         );
         
-        // Use direct assignment since the context doesn't accept callbacks
         setSelectedTemplate({
           text: updatedTemplate,
           category: selectedTemplate.category,
         });
-
+        
         setEditorContent(editorId, updatedTemplate);
-      } else {
-        console.warn(
-          "Cannot update template - sourceTemplate or selectedTemplate is missing"
-        );
       }
+      
+      // 5. Update tree items state
+      setTreeItems(newTreeItems);
     },
-    [
-      treeItems,
-      sourceTemplate,
-      selectedTemplate,
-      setSelectedTemplate,
-      setEditorContent,
-      editorId,
-      count, // Include count as a dependency
-    ]
+    [treeItems, count, sourceTemplate, selectedTemplate, setSelectedTemplate, setEditorContent, editorId]
   );
 
   /**
@@ -765,8 +803,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
         const newTreeItems = initializeTreeItems(
           newCount,
           allValues,
-          updatedLineNumbers,
-          schema.id
+          updatedLineNumbers
         );
         console.log(`🔥 Created ${newTreeItems.length} new tree items`);
         
@@ -797,7 +834,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
     },
     [
       treeItems, 
-      schema,
       count,
       hasCountFieldPlaceholder,
       selectedTemplate,
@@ -805,9 +841,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       editorId,
       adjustTemplateForCount,
       setSelectedTemplate,
-      setEditorContent,
-      detectAndExtractNumberedLines,
-      initializeTreeItems
+      setEditorContent
     ]
   );
 
@@ -887,7 +921,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
         <TreePagination
           totalItems={treeItems.length}
           currentPage={currentPage}
-          setCurrentPage={setCurrentPage}
+          setCurrentPage={handlePageChange}
           itemsPerPage={itemsPerPage}
           displayInfo={displayInfo}
           itemLabel={itemLabel}
@@ -942,7 +976,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
         <TreePagination
           totalItems={treeItems.length}
           currentPage={currentPage}
-          setCurrentPage={setCurrentPage}
+          setCurrentPage={handlePageChange}
           itemsPerPage={itemsPerPage}
           itemLabel={itemLabel}
           position="bottom"
