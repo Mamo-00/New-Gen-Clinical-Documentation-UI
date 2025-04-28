@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Box, Typography, TextField, Stack, Chip } from "@mui/material";
 import { TreeRenderer } from "./Renderer/TreeRenderer";
 import { FieldValue } from "./utilities/treeTypes";
@@ -13,17 +13,18 @@ import {
 } from "../../utils/templates/placeholderRegistry";
 import { flattenSchema } from "../../utils/templates/flattenSchema";
 import TreePagination from "./Pagination/TreePagination";
+import { useAppDispatch, useAppSelector } from "../../app/hooks";
+import { 
+  setTreeItems as setReduxTreeItems, 
+  setCurrentPage as setReduxCurrentPage, 
+  setTemplateText,
+  setEditorId as setReduxEditorId,
+  updateTreeItemValue,
+  TreeItem
+} from "../../features/treeSlice";
+import { store } from "../../app/store";
 
 
-/**
- * Represents a single item in the tree view, containing an ID, line number reference,
- * and a map of field values associated with this item.
- */
-interface TreeItem {
-  id: number;
-  lineNumber: number; // The associated line number in the template
-  values: Record<string, FieldValue>;
-}
 
 /**
  * Props for the DynamicTree component.
@@ -129,6 +130,10 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   editorId,
   itemLabel = "item",
 }) => {
+  const dispatch = useAppDispatch();
+  const { treeItems, currentPage, lastUpdated } = useAppSelector(state => state.tree);
+  const itemsPerPage = 1; // Fixed at 1 item per page
+  
   const { setContent: setEditorContent } = useEditor();
   const { selectedTemplate, setSelectedTemplate } = useTemplate();
   const [sourceTemplate, setSourceTemplate] = useState<string>("");
@@ -144,15 +149,10 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   const [hasCountFieldPlaceholder, setHasCountFieldPlaceholder] =
     useState<boolean>(false);
     
-
-  // Initialize treeItems with memoization to avoid recalculation
-  const [treeItems, setTreeItems] = useState<TreeItem[]>(() =>
-    initializeTreeItems(defaultCount, initialValues)
-  );
-
-  // Pagination state - keeps core state while UI logic is in TreePagination.tsx
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(1);
+  // Initialize Redux store with editorId
+  useEffect(() => {
+    dispatch(setReduxEditorId(editorId));
+  }, [dispatch, editorId]);
   
   // Add a custom setCurrentPage handler for debugging
   const handlePageChange = useCallback((newPage: number) => {
@@ -164,8 +164,8 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       sampleValues: Object.entries(item.values).slice(0, 2)
     })), null, 2));
     
-    setCurrentPage(newPage);
-  }, [currentPage, treeItems]);
+    dispatch(setReduxCurrentPage(newPage));
+  }, [currentPage, treeItems, dispatch]);
 
   /**
    * Calculate the indices for the items to display on the current page.
@@ -207,9 +207,9 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   useEffect(() => {
     const totalPages = Math.ceil(treeItems.length / itemsPerPage);
     if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
+      dispatch(setReduxCurrentPage(totalPages));
     }
-  }, [count, treeItems.length, currentPage, itemsPerPage]);
+  }, [count, treeItems.length, currentPage, itemsPerPage, dispatch]);
 
   /**
    * Log template and tree item state after page changes
@@ -294,15 +294,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
    * 3. Extracts placeholders, line numbers, and values
    * 4. Enhances the schema if needed
    * 5. Initializes tree items with values and line numbers
-   *
-   * It calls:
-   * - extractPlaceholdersFromTemplate
-   * - extractNumberedLines
-   * - flattenSchema
-   * - detectNumberedLines
-   * - extractValuesFromTemplate
-   * - generateSchemaFromTemplate
-   * - initializeTreeItems
    */
   useEffect(() => {
     if (selectedTemplate) {
@@ -332,6 +323,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       }
 
       setSourceTemplate(originalText);
+      dispatch(setTemplateText(originalText));
 
       setHasCountFieldPlaceholder(hasCountField);
 
@@ -397,16 +389,16 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
         delete extractedValues.countField;
       }
 
-      // Initialize tree items with line numbers from the template
-      setTreeItems(
-        initializeTreeItems(
-          Math.max(lineNumbers.length, 1), // At least one item
-          extractedValues,
-          lineNumbers,
-        )
+      // Initialize tree items with line numbers from the template and store in Redux
+      const newTreeItems = initializeTreeItems(
+        Math.max(lineNumbers.length, 1), // At least one item
+        extractedValues,
+        lineNumbers
       );
+      
+      dispatch(setReduxTreeItems(newTreeItems));
     }
-  }, [schema]);
+  }, [schema, dispatch]);
 
   /**
    * Populate the template with initial values once sourceTemplate and treeItems are set.
@@ -414,17 +406,12 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
    * 1. Combines all values from tree items with the proper indexing
    * 2. Updates the template text with these values
    * 3. Updates the editor content
-   *
-   * It calls:
-   * - updateTemplateFromTree
-   * - setSelectedTemplate
-   * - setEditorContent
    */
   useEffect(() => {
     if (selectedTemplate && sourceTemplate && treeItems.length > 0) {
-      // Important: We're updating the template text, but we've already saved
-      // the information about whether it originally had countField placeholders
-
+      // Only run this effect on initial load, not on every treeItems change
+      // We use the useEffect for field changes to handle template updates after changes
+      
       // Prepare values for template update, including both indexed and non-indexed
       const allValues: Record<string, FieldValue> = { countField: count };
 
@@ -438,7 +425,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
           // Add this check before creating indexed versions
           if (!key.includes("_") && item.lineNumber > 0) {
             const indexedKey = `${key}_${item.lineNumber}`;
-
             allValues[indexedKey] = value;
           }
         });
@@ -456,23 +442,13 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
 
       setEditorContent(editorId, initialTemplateText);
     }
+    // Only run on sourceTemplate change, not on treeItems changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceTemplate]);
+  }, [sourceTemplate, editorId, count]);
 
   /**
    * Handles changes to field values in the UI.
-   * This function:
-   * 1. Updates the specific field value in the tree item
-   * 2. Creates indexed versions of the value based on line number
-   * 3. Collects all values from all tree items
-   * 4. Updates the template text with these values
-   * 5. Updates the editor content and tree items state
-   *
-   * It calls:
-   * - updateTemplateFromTree
-   * - setSelectedTemplate
-   * - setEditorContent
-   * - setTreeItems
+   * Now uses Redux to update state.
    */
   const handleFieldChange = useCallback(
     (itemIndex: number, fieldId: string, value: FieldValue) => {
@@ -497,103 +473,72 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
         return;
       }
       
-      // COMPLETELY NEW APPROACH: Start fresh and be extremely explicit
-      console.log(`🔄 Updating tree item values...`);
+      // First dispatch the Redux action to update state
+      dispatch(updateTreeItemValue({
+        itemIndex,
+        fieldId,
+        value,
+        lineNumber
+      }));
       
-      // 1. First, create an updated version of the tree item
-      // Use a clean deep copy approach to avoid any reference issues
-      const updatedItemValues = JSON.parse(JSON.stringify(treeItem.values)) as Record<string, FieldValue>;
-      
-      // 2. Update the specific field
-      updatedItemValues[fieldId] = value;
-      
-      // 3. Also update the indexed version if needed
-      if (lineNumber > 0 && !fieldId.includes("_")) {
-        const indexedKey = `${fieldId}_${lineNumber}`;
-        updatedItemValues[indexedKey] = value;
-        console.log(`🔄 Created indexed key: ${indexedKey}=${value}`);
-      }
-      
-      // 4. Update the component state FIRST, before updating the template
-      // This ensures subsequent calls have the updated values
-      console.log(`🔄 Setting tree items state...`);
-      setTreeItems((prevItems) => {
-        const newItems = [...prevItems];
-        newItems[itemIndex] = {
-          ...newItems[itemIndex],
-          values: updatedItemValues,
-        };
-        
-        console.log(`🔄 New tree items structure:`, JSON.stringify(newItems.map(item => ({
-          id: item.id,
-          lineNumber: item.lineNumber,
-          valuesCount: Object.keys(item.values).length
-        })), null, 2));
-        
-        return newItems;
-      });
-      
-      // 5. SEPARATE STEP: Build the values for the template update
-      // Start completely fresh
-      console.log(`🔄 Building template values...`);
-      const templateValues: Record<string, FieldValue> = { countField: count };
-      
-      // 6. First add all values from unchanged tree items
-      console.log(`🔄 Processing ${treeItems.length} tree items for values`);
-      treeItems.forEach((item, idx) => {
-        if (idx !== itemIndex) {
-          // Only process items that are NOT the changed item
-          console.log(`🔄 Processing values from unchanged item ${idx} (line ${item.lineNumber})`);
-          Object.entries(item.values).forEach(([key, val]) => {
-            templateValues[key] = val;
-            console.log(`🔄 Added ${key}=${val} from unchanged item`);
+      // Use a more reliable approach to get the latest state after the Redux update
+      setTimeout(() => {
+        if (sourceTemplate && selectedTemplate) {
+          // Get the most current state from Redux - important for consistency!
+          const currentState = store.getState().tree;
+          const latestTreeItems = currentState.treeItems;
+          
+          // Create a fresh allValues object with the latest state
+          const allValues: Record<string, FieldValue> = { countField: count };
+          
+          // Process all tree items to get their current values
+          latestTreeItems.forEach((item: TreeItem) => {
+            // Get the line number for this item
+            const itemLineNumber = item.lineNumber;
+            
+            // Process all values in this item to ensure both regular and indexed versions are included
+            Object.entries(item.values).forEach(([key, val]) => {
+              // Always include non-indexed values
+              if (!key.includes('_')) {
+                allValues[key] = val as FieldValue;
+              }
+              
+              // And always include indexed values specific to this line
+              if (key.includes(`_${itemLineNumber}`)) {
+                allValues[key] = val as FieldValue;
+              }
+              
+              // Log to diagnose what values we're using (for debugging)
+              if (key === fieldId || key.startsWith(fieldId + '_')) {
+                console.log(`🔍 Using ${key}=${val} for template update`);
+              }
+            });
           });
-        }
-      });
-      
-      // 7. Then explicitly add values from the updated item
-      // This guarantees the new values are used, without any risk of overwriting
-      console.log(`🔄 Adding values from updated item ${itemIndex}`);
-      Object.entries(updatedItemValues).forEach(([key, val]) => {
-        templateValues[key] = val;
-        console.log(`🔄 Added ${key}=${val} from updated item`);
-      });
-      
-      // 8. Update the template with these values
-      if (sourceTemplate && selectedTemplate) {
-        console.log(`🔄 Updating template with ${Object.keys(templateValues).length} values`);
-        const updatedTemplate = updateTemplateFromTree(
-          sourceTemplate,
-          templateValues
-        );
-        
-        console.log(`🔄 Template updated, new length: ${updatedTemplate.length} chars`);
-        
-        // Use direct assignment since the context doesn't accept callbacks
-        setSelectedTemplate({
-          text: updatedTemplate,
-          category: selectedTemplate.category,
-        });
+          
+          console.log(`🔄 Updating template with values for lines 1-${latestTreeItems.length}`);
+          const updatedTemplate = updateTemplateFromTree(
+            sourceTemplate,
+            allValues
+          );
+          
+          // Update the template in the UI
+          setSelectedTemplate({
+            text: updatedTemplate,
+            category: selectedTemplate.category,
+          });
 
-        setEditorContent(editorId, updatedTemplate);
-        console.log(`🔄 Updated editor content`);
-      } else {
-        console.warn(
-          "Cannot update template - sourceTemplate or selectedTemplate is missing"
-        );
-      }
+          // Update the editor
+          setEditorContent(editorId, updatedTemplate);
+          
+          console.log(`🔄 Template updated with latest Redux state`);
+        } else {
+          console.warn("Cannot update template - sourceTemplate or selectedTemplate is missing");
+        }
+      }, 0); // Use minimal timeout to ensure state is updated
       
       console.log(`🔄 handleFieldChange COMPLETE`);
     },
-    [
-      treeItems,
-      sourceTemplate,
-      selectedTemplate,
-      setSelectedTemplate,
-      setEditorContent,
-      editorId,
-      count, // Include count as a dependency
-    ]
+    [treeItems, sourceTemplate, selectedTemplate, setSelectedTemplate, setEditorContent, editorId, count, dispatch]
   );
 
   /**
@@ -841,68 +786,34 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
           newCount,
           allValues
         );
-        console.log(`🔥 Got adjustedTemplate, length: ${adjustedTemplate.length} chars`);
-        console.log(`🔥 adjustedTemplate: ${adjustedTemplate.substring(0, 100)}...`);
-
-        // Then apply all values to the adjusted template
-        console.log(`🔥 Calling updateTemplateFromTree with ${Object.keys(allValues).length} values`);
-        const updatedTemplate = updateTemplateFromTree(
-          adjustedTemplate,
-          allValues
-        );
-        console.log(`🔥 Got updatedTemplate, length: ${updatedTemplate.length} chars`);
-        console.log(`🔥 updatedTemplate: ${updatedTemplate.substring(0, 100)}...`);
-
-        // Get the new line numbers from the updated template
-        console.log(`🔥 Detecting line numbers in updated template`);
-        const { lineNumbers: updatedLineNumbers } =
-          detectAndExtractNumberedLines(updatedTemplate);
-        console.log(`🔥 Detected ${updatedLineNumbers.length} line numbers: ${JSON.stringify(updatedLineNumbers.slice(0, 10))}`);
-
-        // Create new tree items based on the updated template
-        console.log(`🔥 Initializing new tree items with count=${newCount}, lineNumbers count=${updatedLineNumbers.length}`);
-        const newTreeItems = initializeTreeItems(
-          newCount,
-          allValues,
-          updatedLineNumbers
-        );
-        console.log(`🔥 Created ${newTreeItems.length} new tree items`);
+        console.log(`🔄 Template updated, new length: ${adjustedTemplate.length} chars`);
         
-        // Log a sample tree item
-        if (newTreeItems.length > 0) {
-          const sampleItem = newTreeItems[0];
-          console.log(`🔥 Sample tree item: id=${sampleItem.id}, lineNumber=${sampleItem.lineNumber}, values count=${Object.keys(sampleItem.values).length}`);
-        }
+        // Update the template in the UI
+        setSelectedTemplate({
+          text: adjustedTemplate,
+          category: selectedTemplate.category,
+        });
 
-        // Use direct assignment since the context doesn't accept callbacks
-        console.log(`🔥 Updating selectedTemplate state`);
-        if (selectedTemplate) {
-          setSelectedTemplate({
-            text: updatedTemplate,
-            category: selectedTemplate.category,
-          });
-        }
-
-        console.log(`🔥 Updating editor content with ${updatedTemplate.length} chars`);
-        setEditorContent(editorId, updatedTemplate);
-
-        // Update tree items state
-        console.log(`🔥 Updating treeItems state with ${newTreeItems.length} items`);
-        setTreeItems(newTreeItems);
-        
-        console.log(`🔥 handleCountChange COMPLETED`);
+        setEditorContent(editorId, adjustedTemplate);
+        console.log(`🔄 Updated editor content`);
+      } else {
+        console.warn(
+          "Cannot update template - sourceTemplate or selectedTemplate is missing"
+        );
       }
+      
+      console.log(`🔄 handleCountChange COMPLETE`);
     },
     [
-      treeItems, 
+      treeItems,
+      sourceTemplate,
+      selectedTemplate,
+      setSelectedTemplate,
+      setEditorContent,
+      editorId,
       count,
       hasCountFieldPlaceholder,
-      selectedTemplate,
-      sourceTemplate,
-      editorId,
-      adjustTemplateForCount,
-      setSelectedTemplate,
-      setEditorContent
+      adjustTemplateForCount
     ]
   );
 
@@ -956,6 +867,67 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
     },
     [filteredSchema, handleFieldChange]
   );
+
+  // Create a ref to track previous page
+  const prevPageRef = useRef<number>(currentPage);
+
+  /**
+   * Ensure the template text stays in sync with tree items when switching pages
+   * Only run when the page actually changes, not on every render
+   */
+  useEffect(() => {
+    // Check if the page actually changed to avoid unnecessary updates
+    if (prevPageRef.current !== currentPage && sourceTemplate) {
+      console.log(`🔄 Page changed to ${currentPage}, updating template to match`);
+      prevPageRef.current = currentPage;
+      
+      // Use setTimeout to ensure we're working with the latest state
+      setTimeout(() => {
+        // Get the current tree data from Redux
+        const currentState = store.getState().tree;
+        const latestTreeItems = currentState.treeItems;
+        
+        // Prepare a complete set of values from all tree items
+        const allValues: Record<string, FieldValue> = { countField: count };
+        
+        // Process all tree items to get their current values
+        latestTreeItems.forEach((item: TreeItem) => {
+          // Get the line number for this item
+          const itemLineNumber = item.lineNumber;
+          
+          // Process all values in this item to ensure both regular and indexed versions are included
+          Object.entries(item.values).forEach(([key, val]) => {
+            // Always include non-indexed values
+            if (!key.includes('_')) {
+              allValues[key] = val as FieldValue;
+            }
+            
+            // And always include indexed values specific to this line
+            if (key.includes(`_${itemLineNumber}`)) {
+              allValues[key] = val as FieldValue;
+            }
+          });
+        });
+        
+        if (selectedTemplate) {
+          console.log(`🔄 Updating template with values for lines 1-${latestTreeItems.length}`);
+          const updatedTemplate = updateTemplateFromTree(
+            sourceTemplate,
+            allValues
+          );
+          
+          setSelectedTemplate({
+            text: updatedTemplate,
+            category: selectedTemplate.category,
+          });
+          
+          setEditorContent(editorId, updatedTemplate);
+        }
+      }, 0);
+    }
+    // Only include dependencies that trigger the effect when they actually change
+    // and won't be modified by the effect itself
+  }, [currentPage, sourceTemplate, editorId, count]);
 
   return (
     <Box sx={{ p: 2 }}>
