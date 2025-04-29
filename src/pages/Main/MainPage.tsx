@@ -13,6 +13,7 @@ import { Save } from "@mui/icons-material";
 import { Undo } from "@mui/icons-material";
 import { useTemplate } from "../../context/TemplateContext";
 import { getSchemaAndInitialValues } from "../../utils/templates/getSchemaAndValues";
+import DynamicTreeRefactored from "../../components/Trees/DynamicTreeRefactored";
 
 interface MainToolbarProps {
   editorId: string;
@@ -270,7 +271,7 @@ const MainPage: React.FC = () => {
               const { schema, initialValues } = getSchemaAndInitialValues(selectedTemplate.category);
               
               return (
-                <DynamicTree
+                <DynamicTreeRefactored
                   title={`Makroskopi - ${selectedTemplate.category}`}
                   schema={schema}
                   initialValues={initialValues}

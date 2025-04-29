@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -48,20 +48,40 @@ const TreePagination: React.FC<TreePaginationProps> = ({
   
   // Calculate total pages based on total items and items per page
   const totalPages = useMemo(
-    () => Math.ceil(totalItems / itemsPerPage),
+    () => Math.max(1, Math.ceil(totalItems / itemsPerPage)),
     [totalItems, itemsPerPage]
   );
+
+  // Track previous totalItems to detect changes
+  const [prevTotalItems, setPrevTotalItems] = useState(totalItems);
+
+  // Effect to handle item count changes
+  useEffect(() => {
+    // Check if totalItems has changed
+    if (totalItems !== prevTotalItems) {
+      // If items were added or removed, ensure current page is valid
+      if (currentPage > totalPages) {
+        console.log(`TreePagination: Items changed from ${prevTotalItems} to ${totalItems}, adjusting page from ${currentPage} to ${totalPages}`);
+        setCurrentPage(totalPages);
+      }
+      
+      // Update previous total items
+      setPrevTotalItems(totalItems);
+    }
+  }, [totalItems, currentPage, totalPages, setCurrentPage, prevTotalItems]);
 
   // Page navigation handlers
   const handlePageChange = useCallback(
     (_event: React.ChangeEvent<unknown>, value: number) => {
+      console.log(`TreePagination: Page change from ${currentPage} to ${value}`);
       setCurrentPage(value);
     },
-    [setCurrentPage]
+    [setCurrentPage, currentPage]
   );
 
   const handleTabChange = useCallback(
     (_event: React.SyntheticEvent, newValue: number) => {
+      console.log(`TreePagination: Tab change to ${newValue + 1}`);
       setCurrentPage(newValue + 1);
     },
     [setCurrentPage]
@@ -69,23 +89,27 @@ const TreePagination: React.FC<TreePaginationProps> = ({
 
   const goToNextItem = useCallback(() => {
     if (currentPage < totalPages) {
+      console.log(`TreePagination: Next item, page ${currentPage} -> ${currentPage + 1}`);
       setCurrentPage(currentPage + 1);
     }
   }, [currentPage, totalPages, setCurrentPage]);
 
   const goToPrevItem = useCallback(() => {
     if (currentPage > 1) {
+      console.log(`TreePagination: Previous item, page ${currentPage} -> ${currentPage - 1}`);
       setCurrentPage(currentPage - 1);
     }
   }, [currentPage, setCurrentPage]);
 
   const goToFirstItem = useCallback(() => {
+    console.log(`TreePagination: First item, page ${currentPage} -> 1`);
     setCurrentPage(1);
-  }, [setCurrentPage]);
+  }, [setCurrentPage, currentPage]);
 
   const goToLastItem = useCallback(() => {
+    console.log(`TreePagination: Last item, page ${currentPage} -> ${totalPages}`);
     setCurrentPage(totalPages);
-  }, [totalPages, setCurrentPage]);
+  }, [totalPages, setCurrentPage, currentPage]);
 
   // Memoize tab pagination to prevent unnecessary re-renders
   const renderTabPagination = useMemo(() => {
@@ -104,7 +128,7 @@ const TreePagination: React.FC<TreePaginationProps> = ({
     }
     return (
       <Tabs
-        value={currentPage - 1}
+        value={Math.min(currentPage - 1, totalPages - 1)}
         onChange={handleTabChange}
         variant="scrollable"
         scrollButtons="auto"
@@ -179,7 +203,7 @@ const TreePagination: React.FC<TreePaginationProps> = ({
 
               <Pagination
                 count={totalPages}
-                page={currentPage}
+                page={Math.min(currentPage, totalPages)}
                 onChange={handlePageChange}
                 size="small"
                 siblingCount={1}
@@ -226,7 +250,7 @@ const TreePagination: React.FC<TreePaginationProps> = ({
           </Button>
 
           <Typography variant="body2">
-            Side {currentPage} av {totalPages}
+            Side {Math.min(currentPage, totalPages)} av {totalPages}
           </Typography>
 
           <Button

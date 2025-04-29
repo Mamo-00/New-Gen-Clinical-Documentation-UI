@@ -2,6 +2,26 @@
 import { FieldValue } from "../../components/Trees/utilities/treeTypes";
 
 /**
+ * Parse a key to extract its base field name and line number if it's an indexed field.
+ * @param key - The field key to parse
+ * @returns An object with baseField and lineNumber, or null if not a valid indexed field
+ */
+function parseIndexedKey(key: string): { baseField: string; lineNumber: number } | null {
+  if (!key.includes('_')) return null;
+  
+  const parts = key.split('_');
+  if (parts.length !== 2) return null;
+  
+  const lineNumber = Number(parts[1]);
+  if (isNaN(lineNumber)) return null;
+  
+  return {
+    baseField: parts[0],
+    lineNumber
+  };
+}
+
+/**
  * Replace metadata placeholders in the original template with the field values.
  *
  * @param originalTemplate - The template text containing metadata placeholders.
@@ -13,23 +33,42 @@ export function updateTemplateFromTree(
   fieldValues: Record<string, FieldValue>
 ): string {
   console.log("🔄 updateTemplateFromTree START");
-  console.log("🔄 Field values for update:", JSON.stringify(fieldValues, null, 2));
+  
+  // Clean fieldValues to avoid duplicates and nested keys
+  const cleanedValues: Record<string, FieldValue> = {};
+  
+  // First, copy all non-indexed fields
+  Object.entries(fieldValues).forEach(([key, value]) => {
+    if (!key.includes('_')) {
+      cleanedValues[key] = value;
+    }
+  });
+  
+  // Then add properly indexed fields (only single underscore fields)
+  Object.entries(fieldValues).forEach(([key, value]) => {
+    const parsed = parseIndexedKey(key);
+    if (parsed) {
+      cleanedValues[key] = value;
+    }
+  });
+  
+  console.log("🔄 Field values for update:", JSON.stringify(cleanedValues, null, 2));
   
   // Log all indexed field keys
-  const indexedFields = Object.keys(fieldValues).filter(key => key.includes("_"));
+  const indexedFields = Object.keys(cleanedValues).filter(key => key.includes("_"));
   console.log("🔄 Indexed fields:", JSON.stringify(indexedFields, null, 2));
   
   // First, handle countField separately to ensure consistency
   let updatedTemplate = originalTemplate;
-  if (fieldValues.countField !== undefined) {
+  if (cleanedValues.countField !== undefined) {
     updatedTemplate = updatedTemplate.replace(
       /\{\{\s*countField\s*\}\}/g,
-      String(fieldValues.countField)
+      String(cleanedValues.countField)
     );
   }
   
   // Get the final count to determine how many numbered lines we need
-  const targetCount = Number(fieldValues.countField) || 0;
+  const targetCount = Number(cleanedValues.countField) || 0;
   console.log("🔄 Target count:", targetCount);
   
   // Split the template into lines
@@ -56,18 +95,27 @@ export function updateTemplateFromTree(
   // Build a map of line numbers to their indexed values
   const lineValueMap: Record<number, Record<string, FieldValue>> = {};
   
-  // Parse all indexed fields to separate them by line number
-  indexedFields.forEach(key => {
-    const parts = key.split('_');
-    if (parts.length >= 2) {
-      const lineNum = parseInt(parts[parts.length - 1]);
-      if (!isNaN(lineNum)) {
-        const baseField = parts[0];
-        if (!lineValueMap[lineNum]) {
-          lineValueMap[lineNum] = {};
-        }
-        lineValueMap[lineNum][baseField] = fieldValues[key];
+  // Initialize the line value map with base values for all lines
+  for (let i = 1; i <= targetCount; i++) {
+    lineValueMap[i] = {};
+    
+    // First add base field values to all lines
+    Object.entries(cleanedValues).forEach(([key, value]) => {
+      if (!key.includes('_')) {
+        lineValueMap[i][key] = value;
       }
+    });
+  }
+  
+  // Now override with indexed values for specific lines
+  indexedFields.forEach(key => {
+    const parsed = parseIndexedKey(key);
+    if (parsed && parsed.lineNumber <= targetCount) {
+      const { baseField, lineNumber } = parsed;
+      if (!lineValueMap[lineNumber]) {
+        lineValueMap[lineNumber] = {};
+      }
+      lineValueMap[lineNumber][baseField] = cleanedValues[key];
     }
   });
   
@@ -94,32 +142,13 @@ export function updateTemplateFromTree(
           const placeholder = placeholderMatch[1].trim();
           if (placeholder === "countField") continue; // Skip countField as it's already handled
           
-          // Always prioritize indexed values for numbered lines
-          const indexedKey = `${placeholder}_${lineNum}`;
-          
-          // First check if we have a specific value for this line in our map
+          // Check if we have a value for this line in our map
           if (lineValueMap[lineNum] && lineValueMap[lineNum][placeholder] !== undefined) {
             const lineValue = lineValueMap[lineNum][placeholder];
             console.log(`🔄 Line ${lineNum}: Replacing {{${placeholder}}} with mapped value ${JSON.stringify(lineValue)} from line map`);
             updatedLine = updatedLine.replace(
               new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, 'g'),
               String(lineValue)
-            );
-          }
-          // Next try the direct indexed key
-          else if (fieldValues[indexedKey] !== undefined) {
-            console.log(`🔄 Line ${lineNum}: Replacing {{${placeholder}}} with indexed value ${JSON.stringify(fieldValues[indexedKey])} from ${indexedKey}`);
-            updatedLine = updatedLine.replace(
-              new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, 'g'),
-              String(fieldValues[indexedKey])
-            );
-          } 
-          // Fall back to non-indexed value as a last resort
-          else if (fieldValues[placeholder] !== undefined) {
-            console.log(`🔄 Line ${lineNum}: Replacing {{${placeholder}}} with non-indexed value ${JSON.stringify(fieldValues[placeholder])} (indexed value not found)`);
-            updatedLine = updatedLine.replace(
-              new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, 'g'),
-              String(fieldValues[placeholder])
             );
           } else {
             console.log(`🔄 Line ${lineNum}: No value found for placeholder {{${placeholder}}}`);
@@ -145,11 +174,11 @@ export function updateTemplateFromTree(
       const placeholder = placeholderMatch[1].trim();
       if (placeholder === "countField") continue; // Skip countField as it's already handled
       
-      if (fieldValues[placeholder] !== undefined) {
-        console.log(`🔄 Non-numbered line: Replacing {{${placeholder}}} with value ${JSON.stringify(fieldValues[placeholder])}`);
+      if (cleanedValues[placeholder] !== undefined) {
+        console.log(`🔄 Non-numbered line: Replacing {{${placeholder}}} with value ${JSON.stringify(cleanedValues[placeholder])}`);
         updatedLine = updatedLine.replace(
           new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, 'g'),
-          String(fieldValues[placeholder])
+          String(cleanedValues[placeholder])
         );
       } else {
         console.log(`🔄 Non-numbered line: No value found for placeholder {{${placeholder}}}`);
@@ -180,20 +209,12 @@ export function updateTemplateFromTree(
         const placeholder = placeholderMatch[1].trim();
         if (placeholder === "countField") continue; // Skip countField as it's already handled
         
-        // Check for indexed value
-        const indexedKey = `${placeholder}_${i}`;
-        if (fieldValues[indexedKey] !== undefined) {
-          console.log(`🔄 New line ${i}: Replacing {{${placeholder}}} with indexed value ${JSON.stringify(fieldValues[indexedKey])}`);
+        // Use the line value map for replacement
+        if (lineValueMap[i] && lineValueMap[i][placeholder] !== undefined) {
+          console.log(`🔄 New line ${i}: Replacing {{${placeholder}}} with value ${JSON.stringify(lineValueMap[i][placeholder])}`);
           newLine = newLine.replace(
             new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, 'g'),
-            String(fieldValues[indexedKey])
-          );
-        } else if (fieldValues[placeholder] !== undefined) {
-          // Fall back to non-indexed value
-          console.log(`🔄 New line ${i}: Replacing {{${placeholder}}} with non-indexed value ${JSON.stringify(fieldValues[placeholder])}`);
-          newLine = newLine.replace(
-            new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, 'g'),
-            String(fieldValues[placeholder])
+            String(lineValueMap[i][placeholder])
           );
         } else {
           console.log(`🔄 New line ${i}: No value found for placeholder {{${placeholder}}}`);

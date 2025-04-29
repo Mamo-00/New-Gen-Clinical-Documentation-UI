@@ -116,6 +116,140 @@ export const treeSlice = createSlice({
       });
       
       state.lastUpdated = Date.now();
+    },
+    updateTreeItemCount: (
+      state,
+      action: PayloadAction<{
+        newCount: number,
+        initialValues: Record<string, FieldValue>,
+        lineNumbers?: number[]
+      }>
+    ) => {
+      const { newCount, initialValues, lineNumbers = [] } = action.payload;
+      const currentCount = state.treeItems.length;
+      
+      if (newCount === currentCount) return;
+      
+      // Clean initialValues to prevent duplicate indexed values
+      const cleanedValues: Record<string, FieldValue> = {};
+      
+      // First, collect all non-indexed fields (base values)
+      Object.entries(initialValues).forEach(([key, value]) => {
+        if (!key.includes('_')) {
+          cleanedValues[key] = value;
+        }
+      });
+      
+      // Then collect all properly indexed fields
+      Object.entries(initialValues).forEach(([key, value]) => {
+        // Only keep properly indexed fields (fieldname_NUMBER with just one underscore)
+        if (key.includes('_')) {
+          const parts = key.split('_');
+          if (parts.length === 2 && !isNaN(Number(parts[1]))) {
+            const lineNum = Number(parts[1]);
+            // Only include indexed values for lines that will exist after the update
+            if (lineNum <= newCount) {
+              cleanedValues[key] = value;
+            }
+          }
+        }
+      });
+      
+      console.log(`🔄 updateTreeItemCount: Starting with ${currentCount} items, updating to ${newCount}`);
+      
+      // If increasing count, add new items
+      if (newCount > currentCount) {
+        const newItems: TreeItem[] = [];
+        
+        // Add new items with proper IDs and line numbers
+        for (let i = currentCount + 1; i <= newCount; i++) {
+          // Use provided line number or sequential
+          const lineNumber = lineNumbers[i - 1] || i;
+          
+          // Create a fresh values object for this item
+          const itemValues: Record<string, FieldValue> = { ...cleanedValues };
+          
+          // Important: For new items, we need to extract both the
+          // non-indexed values AND the specific indexed values for this line
+          
+          // First, get all non-indexed values (general defaults)
+          Object.entries(initialValues).forEach(([key, value]) => {
+            if (!key.includes('_')) {
+              itemValues[key] = value;
+            }
+          });
+          
+          // Then, look specifically for this line's indexed values
+          Object.entries(initialValues).forEach(([key, value]) => {
+            if (key.includes(`_${lineNumber}`)) {
+              // For indexed values like "field_3", extract just the field name
+              const baseField = key.split('_')[0];
+              
+              // Set both the indexed version and base version in the new item
+              itemValues[key] = value;
+              itemValues[baseField] = value;
+            }
+          });
+          
+          newItems.push({
+            id: i,
+            lineNumber,
+            values: itemValues,
+          });
+        }
+        
+        // Add the new items to the end
+        state.treeItems = [...state.treeItems, ...newItems];
+        console.log(`🔄 Added ${newItems.length} new items with proper values`);
+      } 
+      // If decreasing count, remove items from the end and clean up remaining items
+      else if (newCount < currentCount) {
+        // Get the line numbers that are being removed
+        const removedLineNumbers = state.treeItems
+          .slice(newCount)
+          .map(item => item.lineNumber);
+        
+        // Remove the items
+        state.treeItems = state.treeItems.slice(0, newCount);
+        
+        // Clean up any remaining indexed values in the remaining items
+        // that refer to line numbers that no longer exist
+        state.treeItems.forEach(item => {
+          const cleanedItemValues: Record<string, FieldValue> = {};
+          
+          // Keep only valid values
+          Object.entries(item.values).forEach(([key, value]) => {
+            // Keep non-indexed values
+            if (!key.includes('_')) {
+              cleanedItemValues[key] = value;
+            } 
+            // Check if the indexed value refers to a line number that still exists
+            else {
+              const parts = key.split('_');
+              if (parts.length === 2) {
+                const lineNum = Number(parts[1]);
+                // Only keep if the line number is valid and not in the removed list
+                if (!isNaN(lineNum) && !removedLineNumbers.includes(lineNum)) {
+                  cleanedItemValues[key] = value;
+                }
+              }
+            }
+          });
+          
+          // Replace the values with the cleaned up version
+          item.values = cleanedItemValues;
+        });
+        
+        // Adjust current page if it's now out of bounds
+        const totalPages = Math.ceil(newCount / state.itemsPerPage);
+        if (state.currentPage > totalPages && totalPages > 0) {
+          state.currentPage = totalPages;
+        }
+        
+        console.log(`🔄 Removed items, now have ${state.treeItems.length} items`);
+      }
+      
+      state.lastUpdated = Date.now();
     }
   },
 });
@@ -127,7 +261,8 @@ export const {
   setTemplateText,
   setEditorId,
   updateTreeItemValue,
-  updateAllTreeValues
+  updateAllTreeValues,
+  updateTreeItemCount
 } = treeSlice.actions;
 
 export default treeSlice.reducer; 
