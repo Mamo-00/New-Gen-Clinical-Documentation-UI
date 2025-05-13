@@ -1,1 +1,1 @@
-export type FieldValue = string | number | boolean;
+export type FieldValue = string | number | boolean | Record<string, boolean>;

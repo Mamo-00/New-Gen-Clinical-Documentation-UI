@@ -1,9 +1,11 @@
 // src/context/TemplateContext.tsx
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState } from "react";
 
 export interface TemplateData {
   text: string;
+  originalText: string;
   category: string;
+  timestamp: number;
 }
 
 interface TemplateContextType {
@@ -17,14 +19,15 @@ export const TemplateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateData | null>(null);
   
   // Add debug logging for template updates
-  const setTemplateWithLog = (template: TemplateData | null) => {
-    /* console.log("TemplateContext: Setting new template", {
-      category: template?.category,
-      text: template?.text ? 
-        template.text.substring(0, 50) + (template.text.length > 50 ? '...' : '') 
-        : null
-    }); */
-    setSelectedTemplate(template);
+  const  setTemplateWithLog= (template: TemplateData | null) => {
+    // Ensure originalText is always set when a new template is selected
+    const updatedTemplate = template ? {
+      ...template,
+      originalText: template.originalText || template.text,
+      timestamp: new Date().getTime() // Add a timestamp to force state update
+    } : null;
+    
+    setSelectedTemplate(updatedTemplate);
   };
   
   // Add an effect to track template changes

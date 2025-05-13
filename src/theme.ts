@@ -14,7 +14,7 @@ const lightPalette: PaletteOptions = {
   secondary: { main: "#0072CE" }, // Blue
   tertiary: { main: "#E5E5E5" }, // Light grey
   text: { primary: "#1B1B1B", secondary: "#005B82" },
-  background: { default: "#FFFFFF", paper: "#F8F7F7" },
+  background: { default: "#FFFAFA", paper: "#F8F7F7" },
 };
 
 const darkPalette: PaletteOptions = {

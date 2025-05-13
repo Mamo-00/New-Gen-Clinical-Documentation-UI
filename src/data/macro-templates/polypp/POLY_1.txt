@@ -1,4 +1,5 @@
-{{polyppType}} polypp {{overallMeasurement}} mm, {{distribution}}.
-{{polyppType}} polypp. Polypphodet {{polyppHeadMeasurement}} mm, stilk måler {{stilkMeasurement}} mm. {{distribution}}
-{{polyppType}} polypp, måler {{fragMeasurementA}} + {{fragMeasurementB}} + {{fragMeasurementC}} mm i #1
+{{countField}} glass merket 1-{{countField}}.
+1: {{polyppType}} polypp {{overallMeasurement}} mm, {{distribution}}.
+2: {{polyppType}} polypp. Polypphodet {{polyppHeadMeasurement}} mm, stilk måler {{stilkMeasurement}} mm. {{distribution}}
+3: {{polyppType}} polypp, måler {{fragMeasurementA}} + {{fragMeasurementB}} + {{fragMeasurementC}} mm i #1
 {{additionalNotes}}

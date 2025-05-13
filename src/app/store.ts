@@ -3,12 +3,14 @@ import { configureStore } from '@reduxjs/toolkit';
 import userReducer from '../features/userSlice';
 import templateReducer from '../features/templateSlice';
 import treeReducer from '../features/treeSlice';
+import mikroskopiReducer from '../features/mikroskopiSlice';
 
 export const store = configureStore({
   reducer: {
     user: userReducer,
     template: templateReducer,
     tree: treeReducer,
+    mikroskopi: mikroskopiReducer,
   },
 });
 

@@ -4,12 +4,12 @@ import { FieldValue } from "./treeTypes";
 export const initialGlassValues: Record<string, FieldValue> = {
     countField: 1,
     glassValue: "",
-    blokker: "#1",
+    blokker: 1,
     hoyde: 0,
     bredde: 0,
     lengde: 0,
     utseende: "annet",
-    orientert: false,
+    orientert: true,
     oppdelt: false,
     oppdeltNumber: 0,
   };

@@ -33,9 +33,13 @@ export function updateTemplateFromTree(
   fieldValues: Record<string, FieldValue>
 ): string {
   console.log("🔄 updateTemplateFromTree START");
+  console.log("originalTemplate: ", originalTemplate);
+  
   
   // Clean fieldValues to avoid duplicates and nested keys
   const cleanedValues: Record<string, FieldValue> = {};
+
+  console.log("fieldValues1: ", fieldValues);
   
   // First, copy all non-indexed fields
   Object.entries(fieldValues).forEach(([key, value]) => {
@@ -43,6 +47,9 @@ export function updateTemplateFromTree(
       cleanedValues[key] = value;
     }
   });
+
+  console.log("cleanedValues: ", cleanedValues);
+  console.log("fieldValues2: ", fieldValues);
   
   // Then add properly indexed fields (only single underscore fields)
   Object.entries(fieldValues).forEach(([key, value]) => {
@@ -110,6 +117,7 @@ export function updateTemplateFromTree(
   // Now override with indexed values for specific lines
   indexedFields.forEach(key => {
     const parsed = parseIndexedKey(key);
+    
     if (parsed && parsed.lineNumber <= targetCount) {
       const { baseField, lineNumber } = parsed;
       if (!lineValueMap[lineNumber]) {
@@ -194,22 +202,52 @@ export function updateTemplateFromTree(
     
     console.log(`🔄 Adding ${targetCount - lastExistingLineNum} new numbered lines`);
     
+    // First ensure countField is consistent across all line value maps
+    for (let i = 1; i <= targetCount; i++) {
+      if (lineValueMap[i]) {
+        lineValueMap[i].countField = targetCount;
+      }
+    }
+    
+    // Find a template line format from the original template
+    const originalLines = originalTemplate.split('\n');
+    let templateLineFormat = '';
+    
+    // Find the first numbered line in the original template to use as format
+    const originalNumberedLineRegex = /^(\d+)\s*:(.*?)$/;
+    for (const line of originalLines) {
+      const match = line.match(originalNumberedLineRegex);
+      if (match) {
+        // We found a numbered line, use it as our template, just replace the number
+        templateLineFormat = line.replace(/^\d+/, '{lineNumber}');
+        console.log(`🔄 Found template line format: ${templateLineFormat}`);
+        break;
+      }
+    }
+    
+    if (!templateLineFormat) {
+      console.error('🔄 Could not find a numbered line in the original template to use as format');
+      return updatedTemplate;
+    }
+    
     for (let i = lastExistingLineNum + 1; i <= targetCount; i++) {
-      // Create a new line based on the template line, but with updated line number
-      let newLine = lines[numberedLineIndices[numberedLineIndices.length - 1].index].replace(lineNumberPattern, `${i}:`);
+      // Create a new line based on the template format, with the current line number
+      let newLine = templateLineFormat.replace('{lineNumber}', String(i));
       console.log(`🔄 New line template for line ${i}: ${newLine}`);
       
       // Replace placeholders with their indexed values if available
       const placeholderPattern = /\{\{\s*([^}]+?)\s*\}\}/g;
       let placeholderMatch;
       
-      // Create a new RegExp for each replacement to avoid state issues
-      const placeholderFinder = new RegExp(placeholderPattern);
-      while ((placeholderMatch = placeholderFinder.exec(lines[numberedLineIndices[numberedLineIndices.length - 1].index])) !== null) {
+      // Make a copy for regex processing (to avoid regex stateful issues)
+      const newLineCopy = String(newLine);
+      let placeholderFinder = new RegExp(placeholderPattern);
+      
+      while ((placeholderMatch = placeholderFinder.exec(newLineCopy)) !== null) {
         const placeholder = placeholderMatch[1].trim();
         if (placeholder === "countField") continue; // Skip countField as it's already handled
         
-        // Use the line value map for replacement
+        // Use the line value map for replacement - using THIS line's values from the map
         if (lineValueMap[i] && lineValueMap[i][placeholder] !== undefined) {
           console.log(`🔄 New line ${i}: Replacing {{${placeholder}}} with value ${JSON.stringify(lineValueMap[i][placeholder])}`);
           newLine = newLine.replace(

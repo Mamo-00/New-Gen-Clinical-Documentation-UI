@@ -93,7 +93,7 @@ export function extractPlaceholdersWithContext(
   lines.forEach(line => {
     // Check if this is a numbered line (e.g., "1:", "2:", etc.)
     const lineNumberMatch = line.match(/^(\d+)\s*:/);
-    const lineNumber = lineNumberMatch ? parseInt(lineNumberMatch[1]) : 0;
+    const lineNumber = lineNumberMatch ? parseInt(lineNumberMatch[1]) : 1;
     
     // Extract all placeholders in this line
     const placeholderRegex = /\{\{\s*([^}]+?)\s*\}\}/g;

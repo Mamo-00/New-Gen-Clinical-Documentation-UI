@@ -52,31 +52,35 @@ export const treeSlice = createSlice({
         itemIndex: number, 
         fieldId: string, 
         value: FieldValue,
-        lineNumber: number
+        lineNumber: number,
+        updateBaseField?: boolean
       }>
     ) => {
-      const { itemIndex, fieldId, value, lineNumber } = action.payload;
+      const { itemIndex, fieldId, value, lineNumber, updateBaseField = false } = action.payload;
       
       if (itemIndex >= 0 && itemIndex < state.treeItems.length) {
         // Get the current tree item
         const currentItem = state.treeItems[itemIndex];
         
         // Check if value is actually different to avoid unnecessary updates
-        if (currentItem.values[fieldId] === value) {
-          return; // No change needed
-        }
+        if (currentItem.values[fieldId] === value) return;
         
         // Handle the base field first (non-indexed)
         let baseField = fieldId;
         let isIndexed = false;
+        console.log(`🔄 updateTreeItemValue: ${fieldId} = ${value}`);
+        
         
         // If this is an indexed field (like "field_1"), extract the base field
         if (fieldId.includes('_')) {
           const parts = fieldId.split('_');
+          console.log("parts: ", parts);
+          
           // Ensure we have a valid indexed field pattern
           if (parts.length >= 2 && !isNaN(Number(parts[parts.length-1]))) {
             baseField = parts[0];
             isIndexed = true;
+            console.log("baseField: ", baseField);
           }
         }
         
@@ -84,16 +88,20 @@ export const treeSlice = createSlice({
         
         // Update the main field in this item
         currentItem.values[fieldId] = value;
+        console.log("currentItem.values[fieldId]: ", currentItem.values[fieldId]);
         
         // For non-indexed fields, update the corresponding indexed field in THIS item
         if (!isIndexed && lineNumber > 0) {
           const indexedKey = `${baseField}_${lineNumber}`;
           currentItem.values[indexedKey] = value;
+          console.log("non-indexed currentItem.values[indexedKey]: ", currentItem.values[indexedKey]);
         }
         
-        // For indexed fields, update the base field in THIS item only
-        if (isIndexed) {
+        // For indexed fields, only update the base field when explicitly requested
+        // or when it's the primary item being edited (where updateBaseField defaults to true)
+        if (isIndexed && updateBaseField) {
           currentItem.values[baseField] = value;
+          console.log("indexed currentItem.values[baseField]: ", currentItem.values[baseField]);
         }
         
         // Mark as updated
@@ -161,35 +169,50 @@ export const treeSlice = createSlice({
       if (newCount > currentCount) {
         const newItems: TreeItem[] = [];
         
+        // Find the highest existing line number
+        const highestLineNumber = state.treeItems.length > 0 
+          ? Math.max(...state.treeItems.map(item => item.lineNumber))
+          : 0;
+          
+        console.log(`🔄 Highest existing line number: ${highestLineNumber}`);
+        
         // Add new items with proper IDs and line numbers
         for (let i = currentCount + 1; i <= newCount; i++) {
           // Use provided line number or sequential
-          const lineNumber = lineNumbers[i - 1] || i;
+          const lineNumber = i;
           
-          // Create a fresh values object for this item
-          const itemValues: Record<string, FieldValue> = { ...cleanedValues };
+          // Create a fresh values object for this item - start with a clean slate
+          const itemValues: Record<string, FieldValue> = {
+            countField: newCount
+          };
           
-          // Important: For new items, we need to extract both the
-          // non-indexed values AND the specific indexed values for this line
-          
-          // First, get all non-indexed values (general defaults)
+          // For brand new lines, use initialValues directly
           Object.entries(initialValues).forEach(([key, value]) => {
-            if (!key.includes('_')) {
-              itemValues[key] = value;
+            // Only process non-indexed values or values specific to this line
+            if (!key.includes('_') || key.includes(`_${lineNumber}`)) {
+              if (!key.includes('_')) {
+                // For base fields (not indexed), add both the base and indexed version
+                itemValues[key] = value;
+                
+                // Also add the indexed version
+                const indexedKey = `${key}_${lineNumber}`;
+                itemValues[indexedKey] = value;
+              } else {
+                // For already indexed fields for this line, add them directly
+                itemValues[key] = value;
+                
+                // Also add the base field if needed
+                const baseField = key.split('_')[0];
+                if (!(baseField in itemValues)) {
+                  itemValues[baseField] = value;
+                }
+              }
             }
           });
           
-          // Then, look specifically for this line's indexed values
-          Object.entries(initialValues).forEach(([key, value]) => {
-            if (key.includes(`_${lineNumber}`)) {
-              // For indexed values like "field_3", extract just the field name
-              const baseField = key.split('_')[0];
-              
-              // Set both the indexed version and base version in the new item
-              itemValues[key] = value;
-              itemValues[baseField] = value;
-            }
-          });
+          // Double-check countField is set correctly in all forms
+          itemValues.countField = newCount;
+          itemValues[`countField_${lineNumber}`] = newCount;
           
           newItems.push({
             id: i,

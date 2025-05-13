@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { CompletionContext, CompletionResult, snippetCompletion } from '@codemirror/autocomplete';
-import centralDictionary from "../../data/central-dictionary.json"
+import enhancedDictionary from "../../data/dictionaries/enhanced-dictionary.json"
 import { convertTemplateToSnippet } from "../../utils/templates/snippetUtils";
 
 interface MedicalCompletion {
@@ -20,16 +20,17 @@ export const useMedicalCompletions = () => {
     );
   }
 
-  const medicalCompletions: MedicalCompletion[] = useMemo(() => 
-    Object.entries(centralDictionary).flatMap(
-      ([category, terms]) =>
-        (terms as string[]).map(term => ({
-          label: isSpecialTerm(term) ? term : term.toLowerCase(),
-          type: "medical-term",
-          info: `Kategori: ${category}`,
-          boost: 1
-        }))
-    ), []);
+  const medicalCompletions: MedicalCompletion[] = useMemo(() => {
+    // Handle autocomplete terms
+    const termCompletions = enhancedDictionary.autocompleteTerms?.map(term => ({
+      label: isSpecialTerm(term.label) ? term.label : term.label.toLowerCase(),
+      type: term.type || "medical-term",
+      info: term.info || "Medisinsk term",
+      boost: 1
+    })) || [];
+    
+    return [...termCompletions];
+  }, []);
 
   const isStartOfSentence = (context: CompletionContext, pos: number): boolean => {
     const textBefore = context.state.doc.sliceString(Math.max(0, pos - 200), pos);
@@ -76,18 +77,18 @@ export const useMedicalCompletions = () => {
     const startOfSentence = isStartOfSentence(context, word.from);
     const searchTerm = word.text.toLowerCase();
 
-    const matchingCompletions = medicalCompletions
-      .filter(completion => 
-        completion.label.toLowerCase().startsWith(searchTerm)
-      )
-      .map(completion => ({
+    const termCompletions = medicalCompletions.filter((completion) => {
+      return completion.label.toLowerCase().startsWith(searchTerm)
+    }).map((completion) => {
+      return {
         ...completion,
         label: formatCompletionLabel(completion.label, startOfSentence)
-      }));
+      }
+    })
 
     return {
       from: word.from,
-      options: matchingCompletions,
+      options: termCompletions,
       validFor: /^\w*$/
     };
   }, []);

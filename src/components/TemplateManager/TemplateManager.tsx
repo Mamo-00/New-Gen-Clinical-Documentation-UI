@@ -55,13 +55,13 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
         throw new Error("Failed to load template");
       }
       const content = await response.text();
-      // Update the global template data:
+      // Set both text and originalText
       const templateData: TemplateData = {
         text: content,
+        originalText: content, // Set the original content
         category: templateInfo.category,
       };
       setSelectedTemplate(templateData);
-      // Optionally, if you want to overwrite the content in a specific editor:
       setEditorContent(targetEditorId, content);
     } catch (err: any) {
       setError(err.message || "Unknown error");
@@ -72,7 +72,7 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
 
   // Optionally, for user-created templates:
   const insertTemplateIntoEditor = (templateContent: string, category: string) => {
-    setSelectedTemplate({ text: templateContent, category });
+    setSelectedTemplate({ text: templateContent, category, originalText: templateContent });
     setEditorContent(targetEditorId, templateContent);
   };
 

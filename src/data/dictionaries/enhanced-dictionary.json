@@ -1,0 +1,736 @@
+{
+  "mikroskopiPanels": [
+    {
+      "id": "generalArchitecture",
+      "title": "Generelle Arkitektoniske Funn",
+      "fields": [
+        {
+          "id": "lesionType",
+          "label": "Lesjonstype (Overordnet)",
+          "type": "dropdown",
+          "options": [
+            "Polypoid",
+            "Flat",
+            "Ulcererende",
+            "Infiltrativ",
+            "Ingen distinkt lesjon"
+          ],
+          "defaultValue": "Ingen distinkt lesjon",
+          "generatesText": "Lesjonen fremstår som {{value}}."
+        },
+        {
+          "id": "glandularPattern",
+          "label": "Kjertelmønster",
+          "type": "dropdown",
+          "options": [
+            "Bevarte krypter",
+            "Tubulært",
+            "Villøst",
+            "Tubulovilløst",
+            "Kribriformt",
+            "Papillært",
+            "Mikropapillært",
+            "Solid",
+            "Trabekulært",
+            "Acinært",
+            "Ingen kjertler/Udifferensiert"
+          ],
+          "defaultValue": "Bevarte krypter",
+          "generatesText": "Kjertelmønsteret er overveiende {{value}}."
+        },
+        {
+          "id": "epithelialSurface",
+          "label": "Overflateepitel",
+          "type": "dropdown",
+          "options": [
+            "Intakt",
+            "Erodert",
+            "Ulcerert",
+            "Dekket av fibrinopurulent materiale"
+          ],
+          "defaultValue": "Intakt",
+          "generatesText": "Overflateepitelet er {{value}}."
+        },
+        {
+          "id": "stromalReaction",
+          "label": "Stromareaksjon",
+          "type": "dropdown",
+          "options": [
+            "Ingen signifikant",
+            "Desmoplastisk",
+            "Myksoid",
+            "Fibrotisk",
+            "Ødematøs",
+            "Inflammatorisk infiltrat"
+          ],
+          "defaultValue": "Ingen signifikant",
+          "generatesText": "Det sees {{value}} stromal reaksjon."
+        },
+        {
+          "id": "necrosisPresent",
+          "label": "Nekrose",
+          "type": "checkbox",
+          "defaultValue": false,
+          "generatesText": "{{value ? Nekrose er til stede. : Ingen tydelig nekrose observeres.}}"
+        },
+        {
+          "id": "necrosisType",
+          "label": "Type Nekrose",
+          "type": "dropdown",
+          "options": [
+            "Koagulasjonsnekrose",
+            "Komedonekrose",
+            "Tumornekrose (uspesifikk)"
+          ],
+          "defaultValue": "Tumornekrose (uspesifikk)",
+          "conditionalOn": "necrosisPresent",
+          "conditionalValue": true,
+          "generatesText": "Nekrosen er av typen {{value}}."
+        }
+      ]
+    },
+
+    {
+      "id": "cellularFeatures",
+      "title": "Cellulære Funn",
+      "fields": [
+        {
+          "id": "cellTypeDominant",
+          "label": "Dominerende Celletype",
+          "type": "dropdown",
+          "options": [
+            "Epiteliale celler",
+            "Spindelceller",
+            "Rundceller (lymfoide)",
+            "Uspesifikke/Pleomorfe"
+          ],
+          "defaultValue": "Epiteliale celler",
+          "generatesText": "De dominerende cellene er {{value}}."
+        },
+        {
+          "id": "nuclearAtypiaGrade",
+          "label": "Kjerneatypi (grad)",
+          "type": "dropdown",
+          "options": ["Ingen/Minimal", "Lett", "Moderat", "Markert/Alvorlig"],
+          "defaultValue": "Ingen/Minimal",
+          "generatesText": "Kjerneatypien vurderes som {{value}}."
+        },
+        {
+          "id": "nuclearFeatures",
+          "label": "Kjernekarakteristika",
+          "type": "checkboxGroup",
+          "options": [
+            "Hyperkromasi",
+            "Pleomorfi",
+            "Vesikulært kromatin",
+            "Uregelmessig kjernemembran"
+          ],
+          "generatesText": "Kjernene viser {{value}}.",
+          "conditionalOn": "nuclearAtypiaGrade",
+          "conditionalValue_not": "Ingen/Minimal"
+        },
+        {
+          "id": "nucleoliProminence",
+          "label": "Nukleoler",
+          "type": "dropdown",
+          "options": ["Lite fremtredende", "Fremtredende", "Multiple"],
+          "defaultValue": "Lite fremtredende",
+          "generatesText": "Nukleolene er {{value}}."
+        },
+        {
+          "id": "cytoplasmAppearance",
+          "label": "Cytoplasma",
+          "type": "dropdown",
+          "options": [
+            "Lite/sparsomt",
+            "Eosinofilt",
+            "Basofilt",
+            "Klarcellet",
+            "Granulært",
+            "Vakuolisert"
+          ],
+          "defaultValue": "Eosinofilt",
+          "generatesText": "Cytoplasma er {{value}}."
+        },
+        {
+          "id": "mitoticActivityObserved",
+          "label": "Mitotisk Aktivitet Observert",
+          "type": "checkbox",
+          "defaultValue": false,
+          "generatesText": "{{value ? Mitotisk aktivitet observeres. : Ingen åpenbar mitotisk aktivitet.}}"
+        },
+        {
+          "id": "mitoticCount",
+          "label": "Mitosetall (per 10 HPF)",
+          "type": "number",
+          "unit": "/10 HPF",
+          "defaultValue": 0,
+          "conditionalOn": "mitoticActivityObserved",
+          "conditionalValue": true,
+          "generatesText": "{{value > 0 ? value +  mitoser per 10 HPF. : }}"
+        },
+        {
+          "id": "atypicalMitoses",
+          "label": "Atypiske Mitoser",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "mitoticActivityObserved",
+          "conditionalValue": true,
+          "generatesText": "{{value ? Atypiske mitoser er til stede. : }}"
+        }
+      ]
+    },
+
+    {
+      "id": "dysplasiaFeatures",
+      "title": "Dysplastiske Funn",
+      "fields": [
+        {
+          "id": "dysplasiaPresent",
+          "label": "Dysplasi Til Stede",
+          "type": "checkbox",
+          "defaultValue": false,
+          "generatesText": "{{value ? Dysplasi er påvist. : Ingen sikker dysplasi påvist.}}"
+        },
+        {
+          "id": "dysplasiaGrade",
+          "label": "Dysplasigrad",
+          "type": "dropdown",
+          "options": ["Lavgradig", "Høygradig", "Ubestemt for dysplasi"],
+          "defaultValue": "Lavgradig",
+          "conditionalOn": "dysplasiaPresent",
+          "conditionalValue": true,
+          "generatesText": "Dysplasien er {{value}}."
+        },
+
+        {
+          "id": "hgd_complexGlands",
+          "label": "Komplekse kjertelformasjoner (HGD)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "dysplasiaGrade",
+          "conditionalValue": "Høygradig",
+          "generatesText": "{{value ? Det sees komplekse kjertelformasjoner. : }}"
+        },
+        {
+          "id": "hgd_cribriform",
+          "label": "Kribriform arkitektur (HGD)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "dysplasiaGrade",
+          "conditionalValue": "Høygradig",
+          "generatesText": "{{value ? Kribriform arkitektur er til stede. : }}"
+        },
+        {
+          "id": "hgd_micropapillary",
+          "label": "Mikropapillære formasjoner (HGD)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "dysplasiaGrade",
+          "conditionalValue": "Høygradig",
+          "generatesText": "{{value ? Mikropapillære formasjoner observeres. : }}"
+        },
+        {
+          "id": "hgd_intraluminalNecrosis",
+          "label": "Intraluminal nekrose (HGD)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "dysplasiaGrade",
+          "conditionalValue": "Høygradig",
+          "generatesText": "{{value ? Intraluminal nekrose er til stede. : }}"
+        },
+
+        {
+          "id": "hgd_lossOfPolarity",
+          "label": "Tap av kjernepolarisering (HGD)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "dysplasiaGrade",
+          "conditionalValue": "Høygradig",
+          "generatesText": "{{value ? Det er betydelig tap av kjernepolarisering. : }}"
+        },
+        {
+          "id": "hgd_enlargedVesicularNuclei",
+          "label": "Forstørrede kjerner, vesikulært kromatin (HGD)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "dysplasiaGrade",
+          "conditionalValue": "Høygradig",
+          "generatesText": "{{value ? Kjernene er forstørrede med vesikulært kromatinmønster. : }}"
+        },
+        {
+          "id": "hgd_prominentNucleoli",
+          "label": "Prominente nukleoler (HGD)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "dysplasiaGrade",
+          "conditionalValue": "Høygradig",
+          "generatesText": "{{value ? Nukleolene er prominente. : }}"
+        }
+      ]
+    },
+
+    {
+      "id": "serratedFeatures",
+      "title": "Sagtakkede Funn",
+      "fields": [
+        {
+          "id": "isSerratedLesionSuspected",
+          "label": "Mistanke om Sagtakket Lesjon",
+          "type": "checkbox",
+          "defaultValue": false,
+          "generatesText": ""
+        },
+
+        {
+          "id": "serrationLocation",
+          "label": "Sagtakkingens Plassering",
+          "type": "dropdown",
+          "options": [
+            "Luminalt (øvre 2/3)",
+            "Basalt (nedre 1/3)",
+            "Gjennomgående"
+          ],
+          "defaultValue": "Luminalt (øvre 2/3)",
+          "conditionalOn": "isSerratedLesionSuspected",
+          "conditionalValue": true,
+          "generatesText": "Sagtakkingen er primært lokalisert {{value}}."
+        },
+        {
+          "id": "hp_cryptArchitecture",
+          "label": "Kryptarkitektur (HP-type)",
+          "type": "dropdown",
+          "options": [
+            "Traktformede krypter (MVHP)",
+            "Dilaterte krypter (GCHP)"
+          ],
+          "defaultValue": "Traktformede krypter (MVHP)",
+          "conditionalOn": "isSerratedLesionSuspected",
+          "conditionalValue": true,
+          "generatesText": "Kryptene er {{value}}."
+        },
+
+        {
+          "id": "bsl_asymmetricCryptDilation",
+          "label": "Asymmetrisk dilatasjon kryptbasis (BSL)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "isSerratedLesionSuspected",
+          "conditionalValue": true,
+          "generatesText": "{{value ? Asymmetrisk dilatasjon av kryptbasis sees. : }}"
+        },
+        {
+          "id": "bsl_horizontalGrowth",
+          "label": "Horisontal vekst langs muscularis mucosae (BSL)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "isSerratedLesionSuspected",
+          "conditionalValue": true,
+          "generatesText": "{{value ? Horisontal vekst langs muscularis mucosae observeres. : }}"
+        },
+        {
+          "id": "bsl_basalCryptSerration",
+          "label": "Sagtakking involverer kryptbasis (BSL)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "isSerratedLesionSuspected",
+          "conditionalValue": true,
+          "generatesText": "{{value ? Sagtakking involverer kryptbasis. : }}"
+        },
+        {
+          "id": "bsl_expandedProliferationZone",
+          "label": "Utvidet proliferasjonssone (BSL)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "isSerratedLesionSuspected",
+          "conditionalValue": true,
+          "generatesText": "{{value ? Proliferasjonssonen er utvidet. : }}"
+        },
+
+        {
+          "id": "tsa_slitLikeSerrations",
+          "label": "Spalteformede sagtakkinger (TSA)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "isSerratedLesionSuspected",
+          "conditionalValue": true,
+          "generatesText": "{{value ? Det sees spalteformede sagtakkinger liknende tynntarmsmucosa. : }}"
+        },
+        {
+          "id": "tsa_eosinophilicCytoplasm",
+          "label": "Høye sylinderepitelceller, eosinofilt cytoplasma (TSA)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "isSerratedLesionSuspected",
+          "conditionalValue": true,
+          "generatesText": "{{value ? Cellene er høye sylindriske med tydelig eosinofilt cytoplasma. : }}"
+        },
+        {
+          "id": "tsa_pencilateNuclei",
+          "label": "Blyantliknende kjerner (TSA)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "isSerratedLesionSuspected",
+          "conditionalValue": true,
+          "generatesText": "{{value ? Kjernene er avlange/blyantliknende. : }}"
+        },
+        {
+          "id": "tsa_ectopicCryptFoci",
+          "label": "Ektopiske kryptfoci (TSA)",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "isSerratedLesionSuspected",
+          "conditionalValue": true,
+          "generatesText": "{{value ? Ektopiske kryptfoci er til stede. : }}"
+        }
+      ]
+    },
+
+    {
+      "id": "inflammatoryInfiltrate",
+      "title": "Inflammatorisk Infiltrat",
+      "fields": [
+        {
+          "id": "inflammationPresent",
+          "label": "Inflammasjon Til Stede",
+          "type": "checkbox",
+          "defaultValue": false,
+          "generatesText": "{{value ? Det sees inflammatorisk infiltrat. : Minimalt eller ingen signifikant inflammasjon.}}"
+        },
+        {
+          "id": "inflammationType",
+          "label": "Type Inflammasjon",
+          "type": "dropdown",
+          "options": [
+            "Akutt",
+            "Kronisk",
+            "Blandet akutt og kronisk",
+            "Granulomatøs",
+            "Eosinofil-rik"
+          ],
+          "defaultValue": "Kronisk",
+          "conditionalOn": "inflammationPresent",
+          "conditionalValue": true,
+          "generatesText": "Inflammasjonen er overveiende {{value}}."
+        },
+        {
+          "id": "inflammationDensity",
+          "label": "Inflammasjonsdensitet",
+          "type": "dropdown",
+          "options": ["Lett", "Moderat", "Markert"],
+          "defaultValue": "Lett",
+          "conditionalOn": "inflammationPresent",
+          "conditionalValue": true,
+          "generatesText": "Densiteten av infiltratet er {{value}}."
+        },
+        {
+          "id": "inflammatoryCellTypes",
+          "label": "Dominerende Inflammatoriske Celler",
+          "type": "checkboxGroup",
+          "options": [
+            "Lymfocytter",
+            "Plasmaceller",
+            "Nøytrofile granulocytter",
+            "Eosinofile granulocytter",
+            "Makrofager",
+            "Kjempeceller"
+          ],
+          "conditionalOn": "inflammationPresent",
+          "conditionalValue": true,
+          "generatesText": "Infiltratet består hovedsakelig av {{value}}."
+        },
+        {
+          "id": "cryptitis",
+          "label": "Kryptitt",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "inflammationPresent",
+          "conditionalValue": true,
+          "generatesText": "{{value ? Kryptitt observeres. : }}"
+        },
+        {
+          "id": "cryptAbscesses",
+          "label": "Kryptabscesser",
+          "type": "checkbox",
+          "defaultValue": false,
+          "conditionalOn": "inflammationPresent",
+          "conditionalValue": true,
+          "generatesText": "{{value ? Kryptabscesser er til stede. : }}"
+        }
+      ]
+    },
+
+    {
+      "id": "invasiveCarcinomaFeatures",
+      "title": "Invasive Karsinomfunn",
+      "fields": [
+        {
+          "id": "invasionSuspected",
+          "label": "Mistanke om Invasiv Vekst",
+          "type": "checkbox",
+          "defaultValue": false,
+          "generatesText": ""
+        },
+        {
+          "id": "carcinomaDifferentiation",
+          "label": "Differensieringsgrad (Karsinom)",
+          "type": "dropdown",
+          "options": [
+            "Høygradig differensiert (Well differentiated / G1)",
+            "Middelsgradig differensiert (Moderately differentiated / G2)",
+            "Lavgradig differensiert (Poorly differentiated / G3)",
+            "Udifferensiert (G4)"
+          ],
+          "defaultValue": "Middelsgradig differensiert (Moderately differentiated / G2)",
+          "conditionalOn": "invasionSuspected",
+          "conditionalValue": true,
+          "generatesText": "Karsinomet er {{value}}."
+        },
+        {
+          "id": "lymphovascularInvasion",
+          "label": "Lymfovaskulær Invasjon (LVI)",
+          "type": "dropdown",
+          "options": ["Ikke påvist", "Påvist", "Ubestemt/Kan ikke vurderes"],
+          "defaultValue": "Ikke påvist",
+          "conditionalOn": "invasionSuspected",
+          "conditionalValue": true,
+          "generatesText": "Lymfovaskulær invasjon er {{value}}."
+        },
+        {
+          "id": "perineuralInvasion",
+          "label": "Perineural Invasjon (PNI)",
+          "type": "dropdown",
+          "options": ["Ikke påvist", "Påvist", "Ubestemt/Kan ikke vurderes"],
+          "defaultValue": "Ikke påvist",
+          "conditionalOn": "invasionSuspected",
+          "conditionalValue": true,
+          "generatesText": "Perineural invasjon er {{value}}."
+        },
+        {
+          "id": "tumorBudding",
+          "label": "Tumor Budding (ITBCC)",
+          "type": "dropdown",
+          "options": [
+            "Bd1 (0-4 buds/lav grad)",
+            "Bd2 (5-9 buds/intermediær grad)",
+            "Bd3 (≥10 buds/høy grad)",
+            "Kan ikke vurderes"
+          ],
+          "defaultValue": "Kan ikke vurderes",
+          "conditionalOn": "invasionSuspected",
+          "conditionalValue": true,
+          "generatesText": "Tumor budding er vurdert som {{value}}."
+        },
+        {
+          "id": "depthOfSubmucosalInvasion",
+          "label": "Dybde Submukosal Infiltrasjon (pT1)",
+          "type": "number",
+          "unit": "µm",
+          "defaultValue": 0,
+          "conditionalOn": "invasionSuspected",
+          "conditionalValue": true,
+          "generatesText": "{{value > 0 ? Dybden av submukosal infiltrasjon er målt til + '' + value + unit + . : '' }}"
+        }
+      ]
+    },
+
+    {
+      "id": "otherFindingsAndAncillary",
+      "title": "Andre Funn og Spesialfarginger/IHC",
+      "fields": [
+        {
+          "id": "specialStainsPerformed",
+          "label": "Spesialfarginger Utført",
+          "type": "text",
+          "defaultValue": "",
+          "generatesText": "{{value ? Følgende spesialfarginger er utført:  + value + . : }}"
+        },
+        {
+          "id": "ihcPerformed",
+          "label": "Immunhistokjemi Utført",
+          "type": "text",
+          "defaultValue": "",
+          "generatesText": "{{value ? Immunhistokjemiske undersøkelser utført:  + value + . : }}"
+        },
+        {
+          "id": "ihcResultsSummary",
+          "label": "Sammendrag av IHC Resultater",
+          "type": "text",
+          "defaultValue": "",
+          "conditionalOn": "ihcPerformed",
+          "conditionalValue_not": "",
+          "generatesText": "{{value ? Resultater:  + value + . : }}"
+        },
+        {
+          "id": "foreignBodies",
+          "label": "Fremmedlegemer",
+          "type": "checkbox",
+          "defaultValue": false,
+          "generatesText": "{{value ? Fremmedlegemer er observert. : }}"
+        },
+        {
+          "id": "microorganisms",
+          "label": "Mikroorganismer",
+          "type": "text",
+          "defaultValue": "",
+          "generatesText": "{{value ? Følgende mikroorganismer er observert:  + value + . : }}"
+        }
+      ]
+    }
+  ],
+  "autocompleteTerms": [
+    { "label": "biopsi", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "malign", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "benign", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "metastase", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "karzinom", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "sarkom", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "inflammasjon", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "nekrose", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "hyperplasi", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "dysplasi", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "atrofi", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "fibrose", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "ulcerasjon", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "ødem", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "hemorragi", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "infarkt", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "granulasjon", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "apoptose", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "mitose", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "carcinom in situ", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "differensiering", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "invasiv", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "multifokal", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "reaktiv forandring", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "sekundær tumor", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "primærtumor", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "grading", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "staging", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "tumor", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "vevsprøve", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "colon", "type": "AnatomyTerm", "info": "Kategori: Patologi" },
+    { "label": "tubulært adenom", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "lavgradig dysplasi", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "høygradig dysplasi", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "reaktive forandringer", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "polypøs lesjon", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "kryptarkitektur", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "pseudostratifisert sylinderepitel", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "hyperkromatiske kjerner", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "sagtakket epitel", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "beger-celler", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+    { "label": "desmoplastisk bindevevsreaksjon", "type": "PathologyTerm", "info": "Kategori: Patologi" },
+
+    { "label": "cytologisk atypi", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "nukleolus", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "eosinofil", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "hematoksylin", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "immunhistokjemi", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "molekylærpatologi", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "mikroorganismer", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "fiksering", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "inkludering", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "seksjon", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "farging", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "dehydrering", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "klarering", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "mikroskopisk beskrivelse", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "basofil", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "PAS-farging", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "trichrom-farging", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" }, 
+    { "label": "giemsa-farging", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" }, 
+    { "label": "silver stain", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "Ki-67", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" }, 
+    { "label": "HER2/neu", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" }, 
+    { "label": "ER/PR", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" }, 
+    { "label": "PD-L1", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" }, 
+    { "label": "snitt", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "tubulære strukturer", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "bindevevsreaksjon", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "lymfefollikkel", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+    { "label": "mononukleære celler", "type": "MicroscopyTerm", "info": "Kategori: Mikroskopi" },
+
+    { "label": "prøvepreparat", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "blokker", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "ufarget snitt", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "prøvetype", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "makroskopisk beskrivelse", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "skisse", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "vedlegg", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "reseksjon", "type": "SurgicalTerm", "info": "Kategori: Makroskopi" },
+    { "label": "eksisjon", "type": "SurgicalTerm", "info": "Kategori: Makroskopi" }, 
+    { "label": "marginer", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "tumorstørrelse", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "makroskopisk utbredelse", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "vevskonsistens", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "fargeendringer", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "blødning", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "fettvev", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "muskelvev", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "bindevev", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "knokkel", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "polypp", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "bredbaset polypp", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "stilket polypp", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "todeling", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "reseksjonsrand", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+    { "label": "flat polypp", "type": "MacroscopyTerm", "info": "Kategori: Makroskopi" },
+   
+    { "label": "lever", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "nyre", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "hud", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "mage", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "tykktarm", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "tynntarm", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "lunge", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "brystvev", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "prostata", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "livmor", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "eggstokk", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "skjoldbruskkjertel", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "sylinderepitel", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "lymfeknuter", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "blære", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "pancreas", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "milt", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "hjerne", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "hjerte", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "ryggmarg", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "skjelett", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "leddbånd", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "sener", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "nerver", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "rektum", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "colon sigmoideum", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "colon cøcum", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "colon ascendens", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+    { "label": "colon fleksur", "type": "AnatomyTerm", "info": "Kategori: Anatomi" },
+
+    { "label": "reseksjon", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "eksisjon", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "fri marg", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "positiv marg", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "tumorfritt vev", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "totalreseksjon", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "partiell reseksjon", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "laparoskopi", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "endoskopi", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "kurettasje", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "debulking", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "rekonstruksjon", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "revisjon", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "amputasjon", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "lymphadenektomi", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "mastectomi", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "prostatektomi", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "hysterektomi", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "nephrektomi", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "lobektomi", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "appendektomi", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "cholecystektomi", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "slyngereseksjon", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "kald slynge", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" },
+    { "label": "varm slynge", "type": "SurgicalTerm", "info": "Kategori: Kirurgisk" }
+  ]
+}

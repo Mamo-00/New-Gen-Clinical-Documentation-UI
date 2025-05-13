@@ -1,7 +1,7 @@
 // src/hooks/useDictionaryManager.ts
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { selectUser, addCustomWord } from '../../features/userSlice';
-import centralDictionary from '../../data/central-dictionary.json';
+import centralDictionary from '../../data/dictionaries/central-dictionary.json';
 
 export interface DictionaryManager {
   getMergedDictionary: () => string[];
