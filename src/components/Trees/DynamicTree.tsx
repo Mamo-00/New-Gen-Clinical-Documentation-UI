@@ -276,8 +276,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
     newCount: number,
     initialValues: Record<string, FieldValue>
   ): string => {
-    console.log(`⚡ adjustTemplateForCount: newCount=${newCount}`);
-
     // Clean up initialValues to avoid duplicates
     const cleanedValues: Record<string, FieldValue> = {};
 
@@ -452,11 +450,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
             !schemaFields.includes(field.id) && field.id !== "countField"
         );
 
-        console.log(
-          "filteredForeignFields in OG function:",
-          filteredForeignFields
-        );
-
         // Create enhanced schema only if we have foreign fields
         if (filteredForeignFields.length > 0) {
           const foreignFieldsContainer: TemplateField = {
@@ -490,7 +483,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
    */
   const handlePageChange = useCallback(
     (newPage: number) => {
-      console.log(`📄 Page change: from ${currentPage} to ${newPage}`);
       dispatch(setReduxCurrentPage(newPage));
     },
     [currentPage, dispatch]
@@ -501,10 +493,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
    */
   const handleFieldChange = useCallback(
     (itemIndex: number, fieldId: string, value: FieldValue) => {
-      console.log(
-        `🔄 Field change: itemIndex=${itemIndex}, fieldId=${fieldId}`
-      );
-
       // Get the tree item and its line number
       const treeItem = treeItems[itemIndex];
       if (!treeItem) {
@@ -571,7 +559,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
           // Get the latest state from Redux
           const currentState = store.getState().tree;
           const latestTreeItems = currentState.treeItems;
-          console.log("count in handleFieldChange:", count);
 
           // Collect all values from the tree items
           const allValues = collectAllTreeItemValues(
@@ -616,8 +603,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
    */
   const handleCountChange = useCallback(
     (newCount: number) => {
-      console.log(`🔥 Count change: newCount=${newCount}`);
-
       if (newCount < 1) {
         return;
       }
@@ -628,10 +613,13 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       // Update count state
       setCount(newCount);
 
-      if (hasCountFieldPlaceholder && selectedTemplate && selectedTemplate.originalText) {
+      if (
+        hasCountFieldPlaceholder &&
+        selectedTemplate &&
+        selectedTemplate.originalText
+      ) {
         // Use selectedTemplate text as base
         const currentTemplateText = selectedTemplate.text;
-        console.log("currentTemplateText:", currentTemplateText);
 
         // Get schema default values
         const { schemaToUse } = enhancedSchemaData;
@@ -642,8 +630,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
           newCount,
           schemaToUse
         );
-        console.log("treeItems in handleCountChange:", treeItems);
-        console.log("allValues in handleCountChange:", allValues);
 
         // Double-check that countField is set correctly
         allValues.countField = newCount;
@@ -722,7 +708,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   const currentItemsData = useMemo(() => {
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    console.log("treeItems in currentItemsData:", treeItems);
+
     return {
       items: treeItems.slice(indexOfFirstItem, indexOfLastItem),
       indexOfFirstItem,
@@ -784,7 +770,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   useEffect(() => {
     if (selectedTemplate?.originalText) {
       const originalText = selectedTemplate.originalText;
-      console.log("when do i run? must be now");
 
       // Check for countField
       const hasCountField = originalText.includes("{{countField}}");
@@ -836,7 +821,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
    */
   useEffect(() => {
     if (prevPageRef.current !== currentPage && selectedTemplate?.originalText) {
-      console.log(`📄 Page changed to ${currentPage}, updating template`);
       prevPageRef.current = currentPage;
 
       // Update template on page change to ensure consistency
@@ -853,8 +837,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
             count,
             schemaToUse
           );
-          console.log("allValues in useEffect:", allValues);
-          console.log("count in useEffect:", count);
 
           // Make sure countField is properly set
           allValues.countField = count;
@@ -899,29 +881,26 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       // Prepare values for template update, including both indexed and non-indexed
       const currentState = store.getState().tree;
       const latestTreeItems = currentState.treeItems;
-      
+
       const allValues = collectAllTreeItemValues(
         latestTreeItems,
         count,
         schema
       );
 
-      console.log("latestTreeItems:", latestTreeItems);
-      console.log("before updateTemplateFromTree with allValues: ", allValues);
-
       const initialTemplateText = updateTemplateFromTree(
         selectedTemplate.originalText,
         allValues
       );
-      
+
       setSelectedTemplate({
         ...selectedTemplate,
         text: initialTemplateText,
       });
-      console.log("after updateTemplateFromTree:", initialTemplateText);
+
       setEditorContent(editorId, initialTemplateText);
     }
-    
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     selectedTemplate?.originalText,
@@ -929,7 +908,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
     count,
     selectedTemplate?.originalText,
     selectedTemplate?.text,
-    treeItems
+    treeItems,
   ]);
 
   /**
@@ -943,7 +922,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       const templateText = selectedTemplate.originalText;
       const placeholders = new Set<string>();
       let match;
-      console.log("yo");
 
       // Get all placeholders from template
       while ((match = placeholderPattern.exec(templateText)) !== null) {
@@ -971,13 +949,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
               item.values[field] !== undefined &&
               item.values[indexedField] === undefined
             ) {
-              console.log(
-                `🔧 Fixing tree item ${
-                  index + 1
-                }: Adding missing ${indexedField} with value ${
-                  item.values[field]
-                }`
-              );
               // Update the item to add the indexed field
               item.values[indexedField] = item.values[field];
               itemsFixed = true;
@@ -988,13 +959,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
               item.values[indexedField] !== undefined &&
               item.values[field] === undefined
             ) {
-              console.log(
-                `🔧 Fixing tree item ${
-                  index + 1
-                }: Adding missing base field ${field} with value ${
-                  item.values[indexedField]
-                }`
-              );
               item.values[field] = item.values[indexedField];
               itemsFixed = true;
             }
@@ -1004,7 +968,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
 
       // If we fixed any items, update the Redux store
       if (itemsFixed) {
-        console.log(`🔧 Updated tree items with fixed indexed values`);
         dispatch(setReduxTreeItems(updatedItems));
       }
     }
