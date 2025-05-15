@@ -11,6 +11,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 import MainPage from "./pages/Main/MainPage";
 import LoadingSkeleton from "./components/LoadingSkeleton";
+import TemplateMenuDemo from "./components/TemplateMenu/TemplateMenuDemo";
 
 const App: React.FC = () => {
   const user = useAppSelector(selectUser);
@@ -56,6 +57,11 @@ const App: React.FC = () => {
               <Route
                 path="/login"
                 element={user ? <Navigate to="/" /> : <LoginPage />}
+              />
+              {/* Add Template Menu Demo route - can be accessed even if not logged in */}
+              <Route
+                path="/template-demo"
+                element={<TemplateMenuDemo />}
               />
             </Routes>
           </BrowserRouter>

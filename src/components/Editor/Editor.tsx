@@ -3,9 +3,13 @@ import { Box } from "@mui/material";
 import Header from "../Header";
 import EditorFooter from "../EditorFooter";
 import EditorControls from "../Settings/EditorControls";
-import EditorTextArea  from "./EditorTextArea";
+import EditorTextArea from "./EditorTextArea";
+import TemplateHintBar from "./TemplateHintBar";
+import "../../styles/editor.css"; // Import editor styles
 
 const Editor: React.FC = () => {
+  // Default to makroskopisk editor ID
+  const defaultEditorId = "makroskopisk";
 
   return (
     <Box
@@ -23,7 +27,8 @@ const Editor: React.FC = () => {
     >
       <Header />
       <EditorControls />
-      <EditorTextArea />
+      <TemplateHintBar />
+      <EditorTextArea editorId={defaultEditorId} />
       <EditorFooter />
     </Box>
   );

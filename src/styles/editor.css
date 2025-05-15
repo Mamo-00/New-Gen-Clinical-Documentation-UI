@@ -1,0 +1,61 @@
+/* Custom CodeMirror Editor Styles */
+
+/* Template completion options */
+.cm-template-option {
+  font-weight: 500;
+  background-color: rgba(66, 165, 245, 0.08) !important;
+}
+
+.cm-completionIcon {
+  display: none !important; /* Hide icons for better layout */
+}
+
+/* Make the autocomplete dropdown more visible */
+.cm-tooltip-autocomplete {
+  border: 1px solid #ccc !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+}
+
+.cm-tooltip-autocomplete ul {
+  max-height: 300px !important;
+  scrollbar-width: thin;
+}
+
+/* Ensure completion list doesn't disappear too quickly */
+.cm-tooltip-autocomplete {
+  transition: opacity 0.1s ease-in-out;
+}
+
+/* Style selected item */
+.cm-completionMatchedText {
+  font-weight: bold;
+  text-decoration: none !important;
+  color: #1976d2;
+}
+
+/* Make current selection more visible */
+.cm-completionIcon-snippet::before {
+  content: "📝" !important;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+/* Improve template trigger visibility */
+.cm-content span:has(span:contains("template:")) {
+  color: #1976d2;
+  font-weight: 500;
+}
+
+/* Linting style adjustments */
+.cm-diagnostic {
+  opacity: 0.8;
+}
+
+/* Focus styles */
+.cm-editor.cm-focused {
+  outline: none !important;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+} 

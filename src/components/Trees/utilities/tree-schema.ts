@@ -116,6 +116,7 @@ export const glass: TemplateField = {
           isIndented: false,
           defaultValue: 0,
           conditionalOn: "oppdelt",
+          conditionalValue: true,
           helpText: "Angi antall oppdelte deler"
         },
       ],

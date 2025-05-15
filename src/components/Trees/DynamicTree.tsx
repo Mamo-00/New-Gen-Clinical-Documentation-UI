@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { Box, Typography, TextField, Stack, Chip } from "@mui/material";
 import { TreeRenderer } from "./Renderer/TreeRenderer";
 import { FieldValue } from "./utilities/treeTypes";
@@ -13,55 +19,76 @@ import {
 } from "../../utils/templates/placeholderRegistry";
 import { flattenSchema } from "../../utils/templates/flattenSchema";
 import TreePagination from "./Pagination/TreePagination";
+import { useAppDispatch, useAppSelector } from "../../app/hooks";
+import {
+  setTreeItems as setReduxTreeItems,
+  setCurrentPage as setReduxCurrentPage,
+  setTemplateText,
+  setEditorId as setReduxEditorId,
+  updateTreeItemValue,
+  TreeItem,
+  updateTreeItemCount,
+} from "../../features/treeSlice";
+import { store } from "../../app/store";
+
+// ========== UTILITY FUNCTIONS ==========
 
 /**
- * Represents a single item in the tree view, containing an ID, line number reference,
- * and a map of field values associated with this item.
+ * Processes a template to extract numbered line information.
  */
-interface TreeItem {
-  id: number;
-  lineNumber: number; // The associated line number in the template
-  values: Record<string, FieldValue>;
-}
+const detectAndExtractNumberedLines = (
+  template: string
+): {
+  lineNumbers: number[];
+  maxLineNumber: number;
+} => {
+  const linePattern = /^(\d+)\s*:/gm;
+  const matches = Array.from(template.matchAll(linePattern));
+  const lineNumbers = matches
+    .map((match) => parseInt(match[1]))
+    .sort((a, b) => a - b);
+  const maxLineNumber = lineNumbers.length > 0 ? Math.max(...lineNumbers) : 0;
+
+  return { lineNumbers, maxLineNumber };
+};
 
 /**
- * Props for the DynamicTree component.
- * @param title - The title displayed at the top of the component
- * @param schema - The schema that defines the structure and fields to render
- * @param initialValues - Default values for fields in the tree
- * @param itemLabel - Label to use for each tree item (default: "item")
- * @param editorId - Identifier for the associated editor
+ * Recursively searches for a field with the specified ID in a template schema and returns its default value.
  */
-interface DynamicTreeProps {
-  title: string;
-  schema: TemplateField;
-  initialValues: Record<string, FieldValue>;
-  itemLabel?: string;
-  editorId: string;
-}
+const findFieldDefaultValue = (
+  baseFieldName: string,
+  schema: TemplateField
+): FieldValue | null => {
+  // Check if this node has the ID we're looking for
+  if (schema.id === baseFieldName && schema.defaultValue !== undefined) {
+    return schema.defaultValue;
+  }
+
+  // If this node has children, check them
+  if (schema.children && schema.children.length > 0) {
+    for (const child of schema.children) {
+      const foundValue = findFieldDefaultValue(baseFieldName, child);
+      if (foundValue !== null) {
+        return foundValue;
+      }
+    }
+  }
+
+  return null;
+};
 
 /**
  * Initializes tree items with appropriate values and line numbers.
- *
- * @param count - Number of items to create
- * @param initialValues - Default values for all fields
- * @param lineNumbers - Optional array of line numbers to assign to items
- * @param schemaId - Optional schema identifier
- * @returns Array of TreeItem objects initialized with values and line numbers
- *
- * This function:
- * 1. Creates an array of TreeItem objects
- * 2. Assigns line numbers from the provided array (or sequential numbers if not provided)
- * 3. Creates a copy of initial values for each item
- * 4. Adds indexed versions of placeholders (e.g., field_1, field_2) based on line numbers
  */
 const initializeTreeItems = (
   count: number,
   initialValues: Record<string, FieldValue>,
-  lineNumbers: number[] = [],
-  schemaId?: string
+  lineNumbers: number[] = []
 ): TreeItem[] => {
   const items: TreeItem[] = [];
+
+  // Ensure countField is set correctly in initial values
+  initialValues.countField = count;
 
   for (let i = 1; i <= count; i++) {
     // Get the corresponding line number if available, otherwise use the item index
@@ -69,6 +96,14 @@ const initializeTreeItems = (
 
     // Create a copy of initial values with indexed versions for this line
     const itemValues = { ...initialValues };
+
+    // Ensure countField is set correctly for this item
+    itemValues.countField = count;
+
+    // Set the indexed countField value for this line
+    if (lineNumber > 0) {
+      itemValues[`countField_${lineNumber}`] = count;
+    }
 
     // Add indexed versions of placeholders
     Object.keys(initialValues).forEach((key: string) => {
@@ -92,93 +127,581 @@ const initializeTreeItems = (
 };
 
 /**
- * Processes a template to extract numbered line information.
- * @param template - The template text to analyze
- * @returns Object containing the array of line numbers and the maximum line number
+ * Combines values from all tree items into a single record with proper indexing.
  */
-const detectAndExtractNumberedLines = (
-  template: string
-): {
-  lineNumbers: number[];
-  maxLineNumber: number;
-} => {
-  const linePattern = /^(\d+)\s*:/gm;
-  const matches = Array.from(template.matchAll(linePattern));
-  const lineNumbers = matches
-    .map((match) => parseInt(match[1]))
-    .sort((a, b) => a - b);
-  const maxLineNumber = lineNumbers.length > 0 ? Math.max(...lineNumbers) : 0;
+const collectAllTreeItemValues = (
+  treeItems: TreeItem[],
+  count: number,
+  schema: TemplateField
+): Record<string, FieldValue> => {
+  // IMPORTANT: Start with countField to ensure it's included
+  const allValues: Record<string, FieldValue> = { countField: count };
 
-  return { lineNumbers, maxLineNumber };
+  // For each tree item, add its values with the proper line number indexing
+  treeItems.forEach((item) => {
+    const lineNumber = item.lineNumber;
+
+    // Set countField for this line explicitly
+    if (lineNumber > 0) {
+      allValues[`countField_${lineNumber}`] = count;
+    }
+
+    // For each value in the tree item
+    Object.entries(item.values).forEach(([key, value]) => {
+      // Store both the original key and an indexed version
+      if (!key.includes("_")) {
+        // Store the base field value
+        const defaultValue = findFieldDefaultValue(key, schema);
+        allValues[key] = defaultValue || value;
+      } else if (key.includes(`_${lineNumber}`)) {
+        // Store existing indexed keys that match this item's line number
+        allValues[key] = value;
+      }
+    });
+  });
+
+  // Double-check that countField is set properly for all possible lines
+  for (let i = 1; i <= treeItems.length; i++) {
+    allValues[`countField_${i}`] = count;
+  }
+
+  // Double-check that base countField is set properly
+  allValues.countField = count;
+
+  return allValues;
 };
 
 /**
- * DynamicTree component handles rendering and managing templated fields with repeatable sections.
- * It synchronizes between a text template with placeholders and a UI for editing values.
- *
- * Key features:
- * - Handles templates with numbered lines (e.g., "1:", "2:")
- * - Allows dynamic addition/removal of items via countField
- * - Provides pagination for navigating multiple items
- * - Syncs template text with UI field values
+ * Fixes missing indexed values in tree items.
+ */
+const fixTreeItemsIndexing = (
+  treeItems: TreeItem[],
+  templateText: string,
+  dispatch: any
+): boolean => {
+  if (treeItems.length === 0 || !templateText) return false;
+
+  // Get placeholders from template
+  const placeholderPattern = /\{\{\s*([^}]+?)\s*\}\}/g;
+  const placeholders = new Set<string>();
+  let match;
+
+  while ((match = placeholderPattern.exec(templateText)) !== null) {
+    const placeholder = match[1].trim();
+    if (placeholder !== "countField") {
+      placeholders.add(placeholder);
+    }
+  }
+
+  // Check for missing indexed values
+  let itemsFixed = false;
+  const updatedItems = [...treeItems];
+
+  updatedItems.forEach((item) => {
+    const lineNumber = item.lineNumber;
+    if (lineNumber > 0) {
+      placeholders.forEach((field) => {
+        const indexedField = `${field}_${lineNumber}`;
+
+        // Add missing indexed values
+        if (
+          item.values[field] !== undefined &&
+          item.values[indexedField] === undefined
+        ) {
+          item.values[indexedField] = item.values[field];
+          itemsFixed = true;
+        }
+
+        // Add missing base values
+        if (
+          item.values[indexedField] !== undefined &&
+          item.values[field] === undefined
+        ) {
+          item.values[field] = item.values[indexedField];
+          itemsFixed = true;
+        }
+      });
+    }
+  });
+
+  // Update Redux if we fixed any items
+  if (itemsFixed) {
+    dispatch(setReduxTreeItems(updatedItems));
+  }
+
+  return itemsFixed;
+};
+
+// ========== COMPONENT INTERFACES ==========
+
+/**
+ * Props for the DynamicTree component.
+ */
+interface DynamicTreeProps {
+  title: string;
+  schema: TemplateField;
+  initialValues: Record<string, FieldValue>;
+  itemLabel?: string;
+  editorId: string;
+}
+
+/**
+ * Refactored DynamicTree component with better internal organization.
+ * This version maintains all the functionality of the original but with cleaner code structure.
  */
 const DynamicTree: React.FC<DynamicTreeProps> = ({
-  title,
   schema,
-  initialValues,
   editorId,
   itemLabel = "item",
 }) => {
+  const dispatch = useAppDispatch();
+  const { treeItems, currentPage } = useAppSelector((state) => state.tree);
+  const itemsPerPage = 1; // Fixed at 1 item per page
+
   const { setContent: setEditorContent } = useEditor();
   const { selectedTemplate, setSelectedTemplate } = useTemplate();
-  const [sourceTemplate, setSourceTemplate] = useState<string>("");
-  //the normal schema but with additional fields that didn't exist in the original schema
   const [enhancedSchema, setEnhancedSchema] = useState<TemplateField>(schema);
-
-  // Get countField from schema with default value of 1
-  const defaultCount = schema.countField || 1;
-
-  const [count, setCount] = useState<number>(defaultCount);
-
-  // Track whether the current template contains countField placeholder
+  const [count, setCount] = useState<number>(schema.countField || 1);
   const [hasCountFieldPlaceholder, setHasCountFieldPlaceholder] =
     useState<boolean>(false);
 
-  // Initialize treeItems with memoization to avoid recalculation
-  const [treeItems, setTreeItems] = useState<TreeItem[]>(() =>
-    initializeTreeItems(defaultCount, initialValues)
-  );
-
-  // Pagination state - keeps core state while UI logic is in TreePagination.tsx
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(1);
+  // Reference to track previous page
+  const prevPageRef = useRef<number>(currentPage);
 
   /**
-   * Calculate the indices for the items to display on the current page.
-   * This is memoized to avoid recalculation on every render.
+   * Adjusts the template text when count changes.
    */
-  const currentItemsIndices = useMemo(() => {
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    return { indexOfFirstItem, indexOfLastItem };
-  }, [currentPage, itemsPerPage]);
+  const adjustTemplateForCount = (
+    template: string,
+    newCount: number,
+    initialValues: Record<string, FieldValue>
+  ): string => {
+    console.log(`⚡ adjustTemplateForCount: newCount=${newCount}`);
+
+    // Clean up initialValues to avoid duplicates
+    const cleanedValues: Record<string, FieldValue> = {};
+
+    // IMPORTANT: Make sure countField has the correct value
+    cleanedValues.countField = newCount;
+    initialValues.countField = newCount;
+
+    // First, copy all non-indexed fields
+    Object.keys(initialValues).forEach((key) => {
+      if (!key.includes("_")) {
+        cleanedValues[key] = initialValues[key];
+      }
+    });
+
+    // Set countField for all line numbers
+    for (let i = 1; i <= newCount; i++) {
+      const indexedCountField = `countField_${i}`;
+      cleanedValues[indexedCountField] = newCount;
+      initialValues[indexedCountField] = newCount;
+    }
+
+    // Then add properly indexed fields (only single underscore fields)
+    Object.entries(initialValues).forEach(([key, value]) => {
+      if (key.includes("_")) {
+        const parts = key.split("_");
+        if (parts.length === 2 && !isNaN(Number(parts[1]))) {
+          const lineNum = Number(parts[1]);
+          // Only keep indexed values for lines that will exist
+          if (lineNum <= newCount) {
+            cleanedValues[key] = value;
+          }
+        }
+      }
+    });
+
+    // Detect line format like "1: text", "2: text"
+    const linePattern = /(^\d+\s*:.+$)/gm;
+    const lines = selectedTemplate?.originalText.match(linePattern);
+
+    if (!lines) {
+      return template;
+    }
+
+    // Extract the line number and content for each match
+    const parsedLines = lines
+      .map((line) => {
+        const match = line.match(/^(\d+)\s*:(.*?)$/);
+        return match ? { num: parseInt(match[1]), text: match[2] } : null;
+      })
+      .filter(Boolean);
+
+    // If we have parsed lines, adjust them based on newCount
+    if (parsedLines.length > 0) {
+      let result = template;
+
+      // Find the highest existing line number
+      const maxLine = Math.max(...parsedLines.map((l) => l!.num));
+
+      // If newCount > maxLine, add new lines
+      if (newCount > maxLine) {
+        // Use first line as model for better format consistency
+        const modelLine =
+          parsedLines.find((l) => l!.num === 1) || parsedLines[0];
+
+        if (modelLine) {
+          // Add new lines using the model line's format
+          for (let i = maxLine + 1; i <= newCount; i++) {
+            // Append new line with increasing number but with clean format
+            const newLineText = `\n${i}:${modelLine.text}`;
+            result += newLineText;
+
+            // Extract placeholders for logging (no functional purpose)
+            const placeholderRegex = /\{\{\s*([^}]+?)\s*\}\}/g;
+            let match;
+
+            // Create a copy of the string for regex (to avoid regex state issues)
+            const textToSearch = String(modelLine.text);
+            while ((match = placeholderRegex.exec(textToSearch)) !== null) {
+              // Skip countField as it's handled separately
+              if (match[1].trim() === "countField") continue;
+            }
+          }
+        }
+      }
+      // If newCount < maxLine, remove excess lines
+      else if (newCount < maxLine) {
+        // Find all lines with numbers > newCount
+        for (let i = newCount + 1; i <= maxLine; i++) {
+          // Create a regex that matches the entire line with this number
+          const lineRegex = new RegExp(`^${i}\\s*:.*$`, "gm");
+
+          // Remove the line
+          result = result.replace(lineRegex, "");
+
+          // Also remove any indexed values for removed lines
+          const keysToRemove = Object.keys(initialValues).filter((key) =>
+            key.includes(`_${i}`)
+          );
+
+          keysToRemove.forEach((key) => {
+            delete initialValues[key];
+            delete cleanedValues[key];
+          });
+        }
+
+        // Clean up any consecutive newlines resulting from removal
+        result = result.replace(/\n\s*\n/g, "\n");
+      }
+
+      // Double-check countField is set correctly before copying values back
+      cleanedValues.countField = newCount;
+
+      // Make sure all indexed countField values are set
+      for (let i = 1; i <= newCount; i++) {
+        cleanedValues[`countField_${i}`] = newCount;
+      }
+
+      // Copy cleaned values back to initialValues
+      Object.keys(initialValues).forEach((key) => delete initialValues[key]);
+      Object.entries(cleanedValues).forEach(([key, value]) => {
+        initialValues[key] = value;
+      });
+
+      return result;
+    }
+
+    return template;
+  };
+
+  // ========== CALLBACKS ========== //
 
   /**
-   * Get the tree items that should be displayed on the current page.
-   * This is memoized to avoid slicing the array on every render.
+   * Enhances schema with placeholders found in the template.
    */
-  const currentItems = useMemo(
-    () =>
-      treeItems.slice(
-        currentItemsIndices.indexOfFirstItem,
-        currentItemsIndices.indexOfLastItem
-      ),
-    [treeItems, currentItemsIndices]
+  const enhanceSchemaWithForeignPlaceholders = useCallback(
+    (
+      templateText: string,
+      baseSchema: TemplateField
+    ): {
+      schemaToUse: TemplateField;
+      filteredForeignFields: TemplateField[];
+    } => {
+      // Extract all placeholders from the template
+      const allPlaceholders = extractPlaceholdersFromTemplate(templateText);
+
+      // Get schema fields
+      const flattenedSchema = flattenSchema(baseSchema);
+      const schemaFields = Object.keys(flattenedSchema);
+
+      // Check if we have placeholders not in the schema
+      const hasForeignPlaceholders = allPlaceholders
+        .filter((p) => p !== "countField")
+        .some((p) => !schemaFields.includes(p));
+
+      // Create the appropriate schema
+      let schemaToUse = baseSchema;
+      let filteredForeignFields: TemplateField[] = []; // Initialize here to be in the outer scope
+
+      if (hasForeignPlaceholders) {
+        // Generate schema from template placeholders
+        const placeholderSchema = generateSchemaFromTemplate(templateText);
+
+        // Get foreign fields from the placeholder schema
+        const fields =
+          placeholderSchema.children?.flatMap(
+            (container) => container.children || []
+          ) || [];
+
+        // Filter out countField and existing fields
+        filteredForeignFields = fields.filter(
+          (field) =>
+            !schemaFields.includes(field.id) && field.id !== "countField"
+        );
+
+        console.log(
+          "filteredForeignFields in OG function:",
+          filteredForeignFields
+        );
+
+        // Create enhanced schema only if we have foreign fields
+        if (filteredForeignFields.length > 0) {
+          const foreignFieldsContainer: TemplateField = {
+            id: "foreignFields",
+            type: "container",
+            label: "Ekstra Felt",
+            layout: "vertical",
+            children: filteredForeignFields,
+          };
+
+          schemaToUse = {
+            ...baseSchema,
+            children: [...(baseSchema.children || []), foreignFieldsContainer],
+          };
+
+          setEnhancedSchema(schemaToUse);
+        } else {
+          setEnhancedSchema(baseSchema);
+        }
+      } else {
+        // No foreign placeholders, use original schema
+        setEnhancedSchema(baseSchema);
+      }
+      return { schemaToUse, filteredForeignFields };
+    },
+    []
   );
+
+  /**
+   * Handle page change in pagination.
+   */
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      console.log(`📄 Page change: from ${currentPage} to ${newPage}`);
+      dispatch(setReduxCurrentPage(newPage));
+    },
+    [currentPage, dispatch]
+  );
+
+  /**
+   * Handles changes to field values in the UI.
+   */
+  const handleFieldChange = useCallback(
+    (itemIndex: number, fieldId: string, value: FieldValue) => {
+      console.log(
+        `🔄 Field change: itemIndex=${itemIndex}, fieldId=${fieldId}`
+      );
+
+      // Get the tree item and its line number
+      const treeItem = treeItems[itemIndex];
+      if (!treeItem) {
+        console.error(`No tree item found at index ${itemIndex}`);
+        return;
+      }
+
+      const lineNumber = treeItem.lineNumber;
+
+      // Check if the value is actually different from the current value
+      const currentValue = treeItem.values[fieldId];
+
+      if (currentValue === value) {
+        return;
+      }
+
+      // Check if this is a foreign field (not in the original schema)
+      // This keeps foreign fields consistent across all tree items
+      const baseFieldId = fieldId.includes("_")
+        ? fieldId.split("_")[0]
+        : fieldId;
+
+      const { schemaToUse } = enhancedSchemaData;
+
+      // Dispatch the Redux action to update state
+      dispatch(
+        updateTreeItemValue({
+          itemIndex,
+          fieldId,
+          value,
+          lineNumber,
+          updateBaseField: true, // Always update base field for the primary item being edited
+        })
+      );
+
+      // Update foreign field on all other tree items
+      treeItems.forEach((item, idx) => {
+        if (idx !== itemIndex) {
+          // Skip the item we just updated
+          const itemLineNumber = item.lineNumber;
+
+          // Also update the indexed version for this line
+          if (itemLineNumber > 0) {
+            // Update the indexed version that corresponds to the original item being changed
+            // For example, if changing tree item 1's measurement_1, update measurement_1 in all other items
+            const indexedFieldId = `${baseFieldId}_${lineNumber}`;
+
+            dispatch(
+              updateTreeItemValue({
+                itemIndex: idx,
+                fieldId: indexedFieldId,
+                value,
+                lineNumber: itemLineNumber,
+                updateBaseField: false, // Don't update base field for other items
+              })
+            );
+          }
+        }
+      });
+
+      // Update the template after the state changes
+      setTimeout(() => {
+        if (selectedTemplate && selectedTemplate.originalText) {
+          // Get the latest state from Redux
+          const currentState = store.getState().tree;
+          const latestTreeItems = currentState.treeItems;
+          console.log("count in handleFieldChange:", count);
+
+          // Collect all values from the tree items
+          const allValues = collectAllTreeItemValues(
+            latestTreeItems,
+            count,
+            schemaToUse
+          );
+
+          // Ensure countField is set correctly
+          allValues.countField = count;
+
+          // Update the template
+          const updatedTemplate = updateTemplateFromTree(
+            selectedTemplate.originalText,
+            allValues
+          );
+
+          // Update the template in the UI
+          setSelectedTemplate({
+            ...selectedTemplate,
+            text: updatedTemplate,
+          });
+
+          // Update the editor
+          setEditorContent(editorId, updatedTemplate);
+        }
+      }, 0);
+    },
+    [
+      treeItems,
+      selectedTemplate,
+      setEditorContent,
+      editorId,
+      dispatch,
+      count,
+      schema,
+    ]
+  );
+
+  /**
+   * Handles changes to the count field (number of items).
+   */
+  const handleCountChange = useCallback(
+    (newCount: number) => {
+      console.log(`🔥 Count change: newCount=${newCount}`);
+
+      if (newCount < 1) {
+        return;
+      }
+
+      // Store current count for page navigation
+      const oldCount = treeItems.length;
+
+      // Update count state
+      setCount(newCount);
+
+      if (hasCountFieldPlaceholder && selectedTemplate && selectedTemplate.originalText) {
+        // Use selectedTemplate text as base
+        const currentTemplateText = selectedTemplate.text;
+        console.log("currentTemplateText:", currentTemplateText);
+
+        // Get schema default values
+        const { schemaToUse } = enhancedSchemaData;
+
+        // Combine all initial values
+        const allValues = collectAllTreeItemValues(
+          treeItems,
+          newCount,
+          schemaToUse
+        );
+        console.log("treeItems in handleCountChange:", treeItems);
+        console.log("allValues in handleCountChange:", allValues);
+
+        // Double-check that countField is set correctly
+        allValues.countField = newCount;
+
+        // Adjust the template
+        const adjustedTemplate = adjustTemplateForCount(
+          currentTemplateText,
+          newCount,
+          allValues
+        );
+
+        // Update the template in the UI
+        setSelectedTemplate({
+          ...selectedTemplate,
+          text: adjustedTemplate,
+        });
+
+        // Update the editor
+        setEditorContent(editorId, adjustedTemplate);
+
+        // Extract line numbers from the adjusted template
+        const { lineNumbers: updatedLineNumbers } =
+          detectAndExtractNumberedLines(adjustedTemplate);
+
+        // Update Redux state
+        dispatch(
+          updateTreeItemCount({
+            newCount,
+            initialValues: allValues,
+            lineNumbers: updatedLineNumbers,
+          })
+        );
+
+        // Set appropriate page
+        if (newCount > oldCount) {
+          // Navigate to the newly added line
+          dispatch(setReduxCurrentPage(newCount));
+        } else if (newCount < oldCount && currentPage > newCount) {
+          // Go to the last valid page if current page is now invalid
+          dispatch(setReduxCurrentPage(newCount));
+        }
+      }
+    },
+    [
+      treeItems,
+      selectedTemplate,
+      setEditorContent,
+      editorId,
+      schema,
+      dispatch,
+      currentPage,
+    ]
+  );
+
+  // ========== MEMOIZED VALUES ==========
 
   /**
    * Format the item label with proper capitalization.
-   * This is memoized to avoid string manipulation on every render.
    */
   const capitalizedItemLabel = useMemo(
     () => itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1),
@@ -186,32 +709,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   );
 
   /**
-   * Adjust the current page when count changes to ensure it's still valid.
-   * For example, if items are removed and the current page is now out of bounds.
-   */
-  useEffect(() => {
-    const totalPages = Math.ceil(treeItems.length / itemsPerPage);
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    }
-  }, [count, treeItems.length, currentPage, itemsPerPage]);
-
-  /**
-   * Calculate display information for pagination, showing which items
-   * are currently visible out of the total.
-   */
-  const displayInfo = useMemo(
-    () => ({
-      start: currentItemsIndices.indexOfFirstItem + 1,
-      end: Math.min(currentItemsIndices.indexOfLastItem, treeItems.length),
-      total: treeItems.length,
-    }),
-    [currentItemsIndices, treeItems.length]
-  );
-
-  /**
    * Determines if pagination controls should be displayed.
-   * Only show pagination when the template has a countField placeholder and multiple items.
    */
   const shouldShowPagination = useMemo(
     () => hasCountFieldPlaceholder && treeItems.length > 1,
@@ -219,675 +717,330 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   );
 
   /**
-   * Initialize the component when a template is loaded.
-   * This effect:
-   * 1. Saves the original template text
-   * 2. Checks for countField placeholder
-   * 3. Extracts placeholders, line numbers, and values
-   * 4. Enhances the schema if needed
-   * 5. Initializes tree items with values and line numbers
-   *
-   * It calls:
-   * - extractPlaceholdersFromTemplate
-   * - extractNumberedLines
-   * - flattenSchema
-   * - detectNumberedLines
-   * - extractValuesFromTemplate
-   * - generateSchemaFromTemplate
-   * - initializeTreeItems
+   * Calculate current items and display info for pagination.
+   */
+  const currentItemsData = useMemo(() => {
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    console.log("treeItems in currentItemsData:", treeItems);
+    return {
+      items: treeItems.slice(indexOfFirstItem, indexOfLastItem),
+      indexOfFirstItem,
+      indexOfLastItem,
+      displayInfo: {
+        start: indexOfFirstItem + 1,
+        end: Math.min(indexOfLastItem, treeItems.length),
+        total: treeItems.length,
+      },
+    };
+  }, [treeItems, currentPage, itemsPerPage]);
+
+  const enhancedSchemaData: {
+    schemaToUse: TemplateField;
+    filteredForeignFields: TemplateField[];
+  } = useMemo(() => {
+    return enhanceSchemaWithForeignPlaceholders(
+      selectedTemplate?.originalText || "",
+      schema
+    );
+  }, [
+    selectedTemplate?.originalText,
+    schema,
+    enhanceSchemaWithForeignPlaceholders,
+  ]);
+
+  // ========== EFFECTS ==========
+  /**
+   * Ensure the enhanced schema is maintained consistently when navigating between pages.
+   * This prevents the Additional Fields section from disappearing.
+   */
+
+  /**
+   * Ensure the enhanced schema is maintained consistently when navigating between pages.
+   * This prevents the Additional Fields section from disappearing.
+   */
+  /*   useEffect(() => {
+    if (selectedTemplate && sourceTemplate) {
+      // Re-apply the enhanceSchemaWithForeignPlaceholders on currentPage change
+      // TODO debug again and figure out what to do
+      const { schemaToUse } = enhanceSchemaWithForeignPlaceholders(
+        selectedTemplate.text,
+        schema
+      );
+      setEnhancedSchema(schemaToUse);
+    }
+  }, [currentPage, sourceTemplate, schema]); */
+
+  /**
+   * Initialize Redux store with editorId.
    */
   useEffect(() => {
-    if (selectedTemplate) {
-      const originalText = selectedTemplate.text;
+    dispatch(setReduxEditorId(editorId));
+  }, [dispatch, editorId]);
+
+  /**
+   * Initialize the component when a template is loaded.
+   */
+  useEffect(() => {
+    if (selectedTemplate?.originalText) {
+      const originalText = selectedTemplate.originalText;
+      console.log("when do i run? must be now");
 
       // Check for countField
       const hasCountField = originalText.includes("{{countField}}");
+      setHasCountFieldPlaceholder(hasCountField);
 
-      // Extract all placeholders from the template
-      const allPlaceholders = extractPlaceholdersFromTemplate(originalText);
-
-      // Get the numbered lines from the template
+      // Get line numbers from template
       const { lineNumbers, maxLineNumber } =
         detectAndExtractNumberedLines(originalText);
 
-      // Check if we have placeholders not in the schema
-      const flattenedSchema = flattenSchema(schema);
+      dispatch(setTemplateText(originalText));
 
-      const schemaFields = Object.keys(flattenedSchema);
-
-      // Get number of lines that follow the pattern "n:" from the template
-      const linesCount = maxLineNumber;
-
-      if (linesCount > 0 && hasCountField) {
-        // If we have numbered lines, set the count to match
-        setCount(linesCount);
+      // If we have numbered lines with countField, set the count
+      if (maxLineNumber > 0 && hasCountField) {
+        setCount(maxLineNumber);
       }
 
-      setSourceTemplate(originalText);
+      // Enhance schema with any foreign placeholders
+      const { schemaToUse } = enhancedSchemaData;
 
-      setHasCountFieldPlaceholder(hasCountField);
+      // Extract values from template
+      const extractedValues = extractValuesFromTemplate(
+        originalText,
+        schemaToUse
+      );
 
-      // Filter out countField from placeholders when deciding on "foreign" placeholders
-      const hasForeignPlaceholders = allPlaceholders
-        .filter((p) => p !== "countField") // Exclude countField from consideration
-        .some((p) => !schemaFields.includes(p));
-
-      // Create the appropriate schema immediately (instead of just setting state)
-      let schemaToUse = schema;
-      
-      if (hasForeignPlaceholders) {
-        // Use the generateSchemaFromTemplate function to create a schema from placeholders
-        const placeholderSchema = generateSchemaFromTemplate(originalText);
-
-        // Hybrid approach - keep original schema structure but add foreign placeholders section
-        const foreignFields =
-          placeholderSchema.children?.flatMap(
-            (container) => container.children || []
-          ) || [];
-
-        // Filter out countField from the foreign fields to avoid duplicate UI elements
-        const filteredForeignFields = foreignFields.filter(
-          (field) =>
-            !schemaFields.includes(field.id) && field.id !== "countField"
-        );
-
-        // Create the enhanced schema inline
-        schemaToUse = {
-          ...schema,
-          children: [
-            ...(schema.children || []),
-            filteredForeignFields.length > 0
-              ? {
-                  id: "foreignFields",
-                  type: "container",
-                  label: "Additional Fields",
-                  layout: "vertical",
-                  children: filteredForeignFields,
-                }
-              : null,
-          ].filter(Boolean) as TemplateField[], // Filter out null entries
-        };
-        
-        // Now update the enhancedSchema state (for other parts of the component to use)
-        setEnhancedSchema(schemaToUse);
-      } else {
-        // No foreign placeholders, use original schema
-        setEnhancedSchema(schema);
-      }
-      
-      // Extract values using the inline-created schema (which already has foreign fields)
-      const extractedValues = extractValuesFromTemplate(originalText, schemaToUse);
-
-      // Remove countField from extracted values to avoid duplicate UI
+      // Remove countField from extracted values
       if (extractedValues.countField !== undefined) {
-        // If countField is present in extracted values, use it to update the count state
         const countValue = Number(extractedValues.countField);
         if (!isNaN(countValue) && countValue > 0) {
           setCount(countValue);
         }
-        // Remove countField from extracted values to avoid duplicate UI
         delete extractedValues.countField;
       }
 
-      // Initialize tree items with line numbers from the template
-      setTreeItems(
-        initializeTreeItems(
-          Math.max(lineNumbers.length, 1), // At least one item
-          extractedValues,
-          lineNumbers, // Use the detected line numbers
-          schema.id
-        )
+      // Initialize tree items
+      const newTreeItems = initializeTreeItems(
+        Math.max(lineNumbers.length, 1),
+        extractedValues,
+        lineNumbers
       );
+
+      dispatch(setReduxTreeItems(newTreeItems));
     }
-  }, [schema]);
+  }, [schema, dispatch, selectedTemplate?.originalText]);
 
   /**
-   * Populate the template with initial values once sourceTemplate and treeItems are set.
+   * Ensure template text stays in sync with tree items when switching pages.
+   * Only run when the page actually changes.
+   */
+  useEffect(() => {
+    if (prevPageRef.current !== currentPage && selectedTemplate?.originalText) {
+      console.log(`📄 Page changed to ${currentPage}, updating template`);
+      prevPageRef.current = currentPage;
+
+      // Update template on page change to ensure consistency
+      setTimeout(() => {
+        if (selectedTemplate) {
+          // Fix any missing indexed values
+          fixTreeItemsIndexing(treeItems, selectedTemplate.text, dispatch);
+
+          const { schemaToUse } = enhancedSchemaData;
+
+          // Update template with the latest values if needed
+          const allValues = collectAllTreeItemValues(
+            treeItems,
+            count,
+            schemaToUse
+          );
+          console.log("allValues in useEffect:", allValues);
+          console.log("count in useEffect:", count);
+
+          // Make sure countField is properly set
+          allValues.countField = count;
+
+          const updatedTemplate = updateTemplateFromTree(
+            selectedTemplate.originalText,
+            allValues
+          );
+
+          if (updatedTemplate !== selectedTemplate.text) {
+            setSelectedTemplate({
+              ...selectedTemplate,
+              text: updatedTemplate,
+            });
+
+            setEditorContent(editorId, updatedTemplate);
+          }
+        }
+      }, 0);
+    }
+  }, [
+    currentPage,
+    selectedTemplate?.originalText,
+    treeItems,
+    dispatch,
+    count,
+    setEditorContent,
+  ]);
+
+  /**
+   * Populate the template with initial values once treeItems are set.
    * This effect:
    * 1. Combines all values from tree items with the proper indexing
    * 2. Updates the template text with these values
    * 3. Updates the editor content
-   *
-   * It calls:
-   * - updateTemplateFromTree
-   * - setSelectedTemplate
-   * - setEditorContent
    */
   useEffect(() => {
-    if (selectedTemplate && sourceTemplate && treeItems.length > 0) {
-      // Important: We're updating the template text, but we've already saved
-      // the information about whether it originally had countField placeholders
+    if (selectedTemplate?.originalText && treeItems.length > 0) {
+      // Only run this effect on initial load, not on every treeItems change
+      // We use the useEffect for field changes to handle template updates after changes
 
       // Prepare values for template update, including both indexed and non-indexed
-      const allValues: Record<string, FieldValue> = { countField: count };
+      const currentState = store.getState().tree;
+      const latestTreeItems = currentState.treeItems;
+      
+      const allValues = collectAllTreeItemValues(
+        latestTreeItems,
+        count,
+        schema
+      );
 
-      // For each tree item, add its values with the proper line number indexing
-      treeItems.forEach((item) => {
-        // For each value in the tree item
-        Object.entries(item.values).forEach(([key, value]) => {
-          // Store both the original key and an indexed version
-          allValues[key] = value; // Original non-indexed key (for backward compatibility)
-
-          // Add this check before creating indexed versions
-          if (!key.includes("_") && item.lineNumber > 0) {
-            const indexedKey = `${key}_${item.lineNumber}`;
-
-            allValues[indexedKey] = value;
-          }
-        });
-      });
+      console.log("latestTreeItems:", latestTreeItems);
+      console.log("before updateTemplateFromTree with allValues: ", allValues);
 
       const initialTemplateText = updateTemplateFromTree(
-        sourceTemplate,
+        selectedTemplate.originalText,
         allValues
       );
-
+      
       setSelectedTemplate({
+        ...selectedTemplate,
         text: initialTemplateText,
-        category: selectedTemplate.category,
       });
-
+      console.log("after updateTemplateFromTree:", initialTemplateText);
       setEditorContent(editorId, initialTemplateText);
     }
+    
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceTemplate]);
+  }, [
+    selectedTemplate?.originalText,
+    editorId,
+    count,
+    selectedTemplate?.originalText,
+    selectedTemplate?.text,
+    treeItems
+  ]);
 
   /**
-   * Handles changes to field values in the UI.
-   * This function:
-   * 1. Updates the specific field value in the tree item
-   * 2. Creates indexed versions of the value based on line number
-   * 3. Collects all values from all tree items
-   * 4. Updates the template text with these values
-   * 5. Updates the editor content and tree items state
-   *
-   * It calls:
-   * - updateTemplateFromTree
-   * - setSelectedTemplate
-   * - setEditorContent
-   * - setTreeItems
+   * Ensure tree items have appropriate indexed values
+   * Fix specific placeholders that may be missing indexed variants
    */
-  const handleFieldChange = useCallback(
-    (itemIndex: number, fieldId: string, value: FieldValue) => {
-      // Get the tree item and its line number
-      const treeItem = treeItems[itemIndex];
-      if (!treeItem) return;
+  useEffect(() => {
+    if (treeItems.length > 0 && selectedTemplate?.text) {
+      // Identify fields used in the template
+      const placeholderPattern = /\{\{\s*([^}]+?)\s*\}\}/g;
+      const templateText = selectedTemplate.originalText;
+      const placeholders = new Set<string>();
+      let match;
+      console.log("yo");
 
-      const lineNumber = treeItem.lineNumber;
-
-      // Check if the value is actually different from the current value
-      const currentValue = treeItem.values[fieldId];
-      
-      if (currentValue === value) return;
-      
-      // COMPLETELY NEW APPROACH: Start fresh and be extremely explicit
-      
-      // 1. First, create an updated version of the tree item
-      // Use a clean deep copy approach to avoid any reference issues
-      const updatedItemValues = JSON.parse(JSON.stringify(treeItem.values)) as Record<string, FieldValue>;
-      
-      // 2. Update the specific field
-      updatedItemValues[fieldId] = value;
-      
-      // 3. Also update the indexed version if needed
-      if (lineNumber > 0 && !fieldId.includes("_")) {
-        const indexedKey = `${fieldId}_${lineNumber}`;
-        updatedItemValues[indexedKey] = value;
-      }
-      
-      // 4. Update the component state FIRST, before updating the template
-      // This ensures subsequent calls have the updated values
-      setTreeItems((prevItems) => {
-        const newItems = [...prevItems];
-        newItems[itemIndex] = {
-          ...newItems[itemIndex],
-          values: updatedItemValues,
-        };
-        return newItems;
-      });
-      
-      // 5. SEPARATE STEP: Build the values for the template update
-      // Start completely fresh
-      const templateValues: Record<string, FieldValue> = { countField: count };
-      
-      // 6. First add all values from unchanged tree items
-      treeItems.forEach((item, idx) => {
-        if (idx !== itemIndex) {
-          // Only process items that are NOT the changed item
-          Object.entries(item.values).forEach(([key, val]) => {
-            templateValues[key] = val;
-          });
+      // Get all placeholders from template
+      while ((match = placeholderPattern.exec(templateText)) !== null) {
+        const placeholder = match[1].trim();
+        if (placeholder !== "countField") {
+          placeholders.add(placeholder);
         }
-      });
-      
-      // 7. Then explicitly add values from the updated item
-      // This guarantees the new values are used, without any risk of overwriting
-      Object.entries(updatedItemValues).forEach(([key, val]) => {
-        templateValues[key] = val;
-      });
-      
-      // 8. Update the template with these values
-      if (sourceTemplate && selectedTemplate) {
-        const updatedTemplate = updateTemplateFromTree(
-          sourceTemplate,
-          templateValues
-        );
-        
-        // Use direct assignment since the context doesn't accept callbacks
-        setSelectedTemplate({
-          text: updatedTemplate,
-          category: selectedTemplate.category,
-        });
-
-        setEditorContent(editorId, updatedTemplate);
-      } else {
-        console.warn(
-          "Cannot update template - sourceTemplate or selectedTemplate is missing"
-        );
-      }
-    },
-    [
-      treeItems,
-      sourceTemplate,
-      selectedTemplate,
-      setSelectedTemplate,
-      setEditorContent,
-      editorId,
-      count, // Include count as a dependency
-    ]
-  );
-
-  /**
-   * Adjusts the template text when count changes.
-   * This function:
-   * 1. Detects line patterns like "1:", "2:" in the template
-   * 2. Adds or removes lines based on the new count
-   * 3. Ensures placeholder values are preserved
-   *
-   * It handles:
-   * - Adding new lines with placeholders when count increases
-   * - Removing excess lines when count decreases
-   * - Cleaning up template formatting
-   * - Setting up indexed values for all placeholders
-   */
-  const adjustTemplateForCount = useCallback(
-    (
-      template: string,
-      newCount: number,
-      initialValues: Record<string, FieldValue>
-    ): string => {
-      console.log(`⚡ adjustTemplateForCount STARTED: newCount=${newCount}`);
-      console.log(`⚡ Initial template: ${template.substring(0, 100)}...`);
-      console.log(`⚡ Initial values: ${JSON.stringify(initialValues, null, 2).substring(0, 200)}...`);
-      
-      // Detect line format like "1: text", "2: text"
-      const linePattern = /(^\d+\s*:.+$)/gm;
-      const lines = template.match(linePattern);
-
-      console.log(`⚡ Detected ${lines?.length || 0} numbered lines in template`);
-      
-      if (!lines) {
-        console.log('⚡ No numbered lines found, returning original template');
-        return template;
       }
 
-      // Extract the line number and content for each match
-      const parsedLines = lines
-        .map((line) => {
-          const match = line.match(/^(\d+)\s*:(.*?)$/);
-          return match ? { num: parseInt(match[1]), text: match[2] } : null;
-        })
-        .filter(Boolean);
+      // Check if any tree items are missing indexed values for these placeholders
+      let itemsFixed = false;
 
-      console.log(`⚡ Parsed ${parsedLines.length} valid lines`);
-      parsedLines.forEach((line, idx) => {
-        if (idx < 5) { // Limit logging to first 5 for brevity
-          console.log(`⚡ Line ${idx+1}: num=${line?.num}, text="${line?.text?.substring(0, 30)}..."`);
-        }
-      });
+      // Clone the tree items to avoid direct state mutation
+      const updatedItems = [...treeItems];
 
-      // If we have parsed lines, adjust them based on newCount
-      if (parsedLines.length > 0) {
-        let result = template;
+      updatedItems.forEach((item, index) => {
+        const lineNumber = item.lineNumber;
+        if (lineNumber > 0) {
+          // For each placeholder, ensure both base and indexed values exist
+          placeholders.forEach((field) => {
+            const indexedField = `${field}_${lineNumber}`;
 
-        // Find the highest existing line number
-        const maxLine = Math.max(...parsedLines.map((l) => l!.num));
-        console.log(`⚡ Highest line number: ${maxLine}`);
-
-        // If newCount > maxLine, add new lines
-        if (newCount > maxLine) {
-          console.log(`⚡ Need to ADD lines: current max=${maxLine}, new count=${newCount}`);
-          
-          // Find a model line to use as template
-          const modelLine = parsedLines.find((l) => l!.num === maxLine);
-          console.log(`⚡ Using model line: ${JSON.stringify(modelLine)}`);
-          
-          if (modelLine) {
-            // Process existing text to ensure all placeholders have defined values in all lines
-            const initialValuesClone = {...initialValues};
-            
-            for (let i = 1; i <= maxLine; i++) {
-              // For each placeholder, ensure it has a corresponding indexed value
-              Object.keys(initialValues).forEach((key) => {
-                const indexedKey = `${key}_${i}`;
-                // We set up the indexed values but don't modify the template yet
-                if (initialValues[key] !== undefined) {
-                  initialValuesClone[indexedKey] = initialValues[key];
-                }
-              });
+            // If there's a base value but no indexed value, add it
+            if (
+              item.values[field] !== undefined &&
+              item.values[indexedField] === undefined
+            ) {
+              console.log(
+                `🔧 Fixing tree item ${
+                  index + 1
+                }: Adding missing ${indexedField} with value ${
+                  item.values[field]
+                }`
+              );
+              // Update the item to add the indexed field
+              item.values[indexedField] = item.values[field];
+              itemsFixed = true;
             }
-            
-            console.log(`⚡ Updated initialValues with indexed values for existing lines`);
-            console.log(`⚡ Keys count before: ${Object.keys(initialValues).length}, after: ${Object.keys(initialValuesClone).length}`);
-            
-            // Log a sample of indexed keys
-            const sampleKeys = Object.keys(initialValuesClone)
-              .filter(k => k.includes('_'))
-              .slice(0, 5);
-            console.log(`⚡ Sample indexed keys: ${JSON.stringify(sampleKeys)}`);
 
-            // Add new lines using the model line's format
-            for (let i = maxLine + 1; i <= newCount; i++) {
-              // Append new line with increasing number
-              const newLineText = `\n${i}:${modelLine.text}`;
-              result += newLineText;
-              console.log(`⚡ Added new line ${i}: "${newLineText.substring(0, 30)}..."`);
-
-              // For each placeholder in the model line, create indexed values
-              const placeholderRegex = /\{\{\s*([^}]+?)\s*\}\}/g;
-              let match;
-              let placeholdersFound = 0;
-              while ((match = placeholderRegex.exec(modelLine.text)) !== null) {
-                placeholdersFound++;
-                const placeholder = match[1].trim();
-                const indexedKey = `${placeholder}_${i}`;
-                // Set up indexed values for new lines
-                if (initialValues[placeholder] !== undefined) {
-                  initialValuesClone[indexedKey] = initialValues[placeholder];
-                  console.log(`⚡ Created indexed value: ${indexedKey}=${initialValues[placeholder]}`);
-                }
-              }
-              console.log(`⚡ Found ${placeholdersFound} placeholders in model line`);
-            }
-            
-            // Copy back all values to the original object
-            Object.keys(initialValuesClone).forEach(key => {
-              initialValues[key] = initialValuesClone[key];
-            });
-          }
-        }
-        // If newCount < maxLine, remove excess lines
-        else if (newCount < maxLine) {
-          console.log(`⚡ Need to REMOVE lines: current max=${maxLine}, new count=${newCount}`);
-          
-          // Find all lines with numbers > newCount
-          for (let i = newCount + 1; i <= maxLine; i++) {
-            // Create a regex that matches the entire line with this number
-            const lineRegex = new RegExp(`^${i}\\s*:.*$`, "gm");
-            const beforeLength = result.length;
-            
-            // Remove the line
-            result = result.replace(lineRegex, "");
-            
-            const afterLength = result.length;
-            console.log(`⚡ Removed line ${i}: chars removed=${beforeLength - afterLength}`);
-
-            // Also clean up any indexed values for removed lines
-            const keysToRemove = Object.keys(initialValues)
-              .filter((key) => key.endsWith(`_${i}`));
-              
-            console.log(`⚡ Removing ${keysToRemove.length} indexed values for line ${i}`);
-            keysToRemove.forEach((key) => {
-              delete initialValues[key];
-              console.log(`⚡ Deleted key: ${key}`);
-            });
-          }
-
-          // Clean up any consecutive newlines resulting from removal
-          const beforeCleanup = result.length;
-          result = result.replace(/\n\s*\n/g, "\n");
-          const afterCleanup = result.length;
-          console.log(`⚡ Cleaned up consecutive newlines: removed ${beforeCleanup - afterCleanup} chars`);
-        }
-
-        console.log(`⚡ Final template length: ${result.length} chars`);
-        console.log(`⚡ Final initialValues keys count: ${Object.keys(initialValues).length}`);
-        
-        return result;
-      }
-
-      console.log('⚡ No valid parsed lines, returning original template');
-      return template;
-    },
-    []
-  );
-
-  /**
-   * Handles changes to the count field (number of items).
-   * This function:
-   * 1. Updates the count state
-   * 2. Updates the template if it has countField placeholder
-   * 3. Creates new tree items based on the updated count
-   *
-   * It calls:
-   * - updateTemplateFromTree
-   * - extractNumberedLines
-   * - initializeTreeItems
-   * - setSelectedTemplate
-   * - setEditorContent
-   * - setTreeItems
-   */
-  const handleCountChange = useCallback(
-    (newCount: number) => {
-      console.log(`🔥 handleCountChange STARTED: newCount=${newCount}`);
-      
-      if (newCount < 1) {
-        console.log(`🔥 Invalid count (${newCount}), ignoring`);
-        return;
-      }
-
-      console.log(`🔥 Setting count state from ${count} to ${newCount}`);
-      setCount(newCount);
-
-      // Handle template updates for any template with countField placeholder
-      console.log(`🔥 hasCountFieldPlaceholder=${hasCountFieldPlaceholder}, selectedTemplate exists=${!!selectedTemplate}, sourceTemplate exists=${!!sourceTemplate}`);
-      
-      if (hasCountFieldPlaceholder && selectedTemplate && sourceTemplate) {
-        console.log(`🔥 Template needs updating: ${sourceTemplate.substring(0, 100)}...`);
-        
-        // Create a working copy of all current values
-        const allValues: Record<string, FieldValue> = {
-          countField: newCount,
-        };
-        console.log(`🔥 Starting with allValues: ${JSON.stringify(allValues)}`);
-
-        // Get all current values from tree items
-        console.log(`🔥 Processing ${treeItems.length} tree items`);
-        
-        treeItems.forEach((item, itemIdx) => {
-          const lineNumber = item.lineNumber;
-          console.log(`🔥 Processing item ${itemIdx+1}, line=${lineNumber}, with ${Object.keys(item.values).length} values`);
-
-          Object.entries(item.values).forEach(([key, value], entryIdx) => {
-            // Only log first few entries per item to avoid console spam
-            const shouldLog = entryIdx < 3;
-            
-            // Store both indexed and non-indexed versions properly
-            if (key.includes("_") && Number(key.split("_").pop()) > 0) {
-              // Keep indexed values as is
-              allValues[key] = value;
-              if (shouldLog) console.log(`🔥 Keeping indexed value: ${key}=${value}`);
-            } else {
-              // Store plain keys
-              allValues[key] = value;
-              if (shouldLog) console.log(`🔥 Setting plain key: ${key}=${value}`);
-
-              // Also create indexed versions for numbered lines
-              if (lineNumber > 0) {
-                const indexedKey = `${key}_${lineNumber}`;
-                allValues[indexedKey] = value;
-                if (shouldLog) console.log(`🔥 Adding indexed key: ${indexedKey}=${value}`);
-              }
+            // If there's an indexed value but no base value, add it
+            if (
+              item.values[indexedField] !== undefined &&
+              item.values[field] === undefined
+            ) {
+              console.log(
+                `🔧 Fixing tree item ${
+                  index + 1
+                }: Adding missing base field ${field} with value ${
+                  item.values[indexedField]
+                }`
+              );
+              item.values[field] = item.values[indexedField];
+              itemsFixed = true;
             }
           });
-        });
-
-        console.log(`🔥 Collected ${Object.keys(allValues).length} total values`);
-        console.log(`🔥 Sample keys: ${JSON.stringify(Object.keys(allValues).slice(0, 5))}`);
-
-        // First adjust the template structure based on the new count
-        console.log(`🔥 Calling adjustTemplateForCount with newCount=${newCount}`);
-        const adjustedTemplate = adjustTemplateForCount(
-          sourceTemplate,
-          newCount,
-          allValues
-        );
-        console.log(`🔥 Got adjustedTemplate, length: ${adjustedTemplate.length} chars`);
-        console.log(`🔥 adjustedTemplate: ${adjustedTemplate.substring(0, 100)}...`);
-
-        // Then apply all values to the adjusted template
-        console.log(`🔥 Calling updateTemplateFromTree with ${Object.keys(allValues).length} values`);
-        const updatedTemplate = updateTemplateFromTree(
-          adjustedTemplate,
-          allValues
-        );
-        console.log(`🔥 Got updatedTemplate, length: ${updatedTemplate.length} chars`);
-        console.log(`🔥 updatedTemplate: ${updatedTemplate.substring(0, 100)}...`);
-
-        // Get the new line numbers from the updated template
-        console.log(`🔥 Detecting line numbers in updated template`);
-        const { lineNumbers: updatedLineNumbers } =
-          detectAndExtractNumberedLines(updatedTemplate);
-        console.log(`🔥 Detected ${updatedLineNumbers.length} line numbers: ${JSON.stringify(updatedLineNumbers.slice(0, 10))}`);
-
-        // Create new tree items based on the updated template
-        console.log(`🔥 Initializing new tree items with count=${newCount}, lineNumbers count=${updatedLineNumbers.length}`);
-        const newTreeItems = initializeTreeItems(
-          newCount,
-          allValues,
-          updatedLineNumbers,
-          schema.id
-        );
-        console.log(`🔥 Created ${newTreeItems.length} new tree items`);
-        
-        // Log a sample tree item
-        if (newTreeItems.length > 0) {
-          const sampleItem = newTreeItems[0];
-          console.log(`🔥 Sample tree item: id=${sampleItem.id}, lineNumber=${sampleItem.lineNumber}, values count=${Object.keys(sampleItem.values).length}`);
         }
+      });
 
-        // Use direct assignment since the context doesn't accept callbacks
-        console.log(`🔥 Updating selectedTemplate state`);
-        if (selectedTemplate) {
-          setSelectedTemplate({
-            text: updatedTemplate,
-            category: selectedTemplate.category,
-          });
-        }
-
-        console.log(`🔥 Updating editor content with ${updatedTemplate.length} chars`);
-        setEditorContent(editorId, updatedTemplate);
-
-        // Update tree items state
-        console.log(`🔥 Updating treeItems state with ${newTreeItems.length} items`);
-        setTreeItems(newTreeItems);
-        
-        console.log(`🔥 handleCountChange COMPLETED`);
+      // If we fixed any items, update the Redux store
+      if (itemsFixed) {
+        console.log(`🔧 Updated tree items with fixed indexed values`);
+        dispatch(setReduxTreeItems(updatedItems));
       }
-    },
-    [
-      treeItems, 
-      schema,
-      count,
-      hasCountFieldPlaceholder,
-      selectedTemplate,
-      sourceTemplate,
-      editorId,
-      adjustTemplateForCount,
-      setSelectedTemplate,
-      setEditorContent,
-      detectAndExtractNumberedLines,
-      initializeTreeItems
-    ]
-  );
+    }
+  }, [treeItems, selectedTemplate?.originalText, dispatch]);
 
-  /**
-   * Creates a filtered version of the schema that excludes countField.
-   * This prevents duplicate UI elements since countField is handled separately.
-   *
-   * This function recursively processes the schema tree, marking countField nodes
-   * for exclusion and filtering them out from the final schema.
-   */
-  const filteredSchema = useMemo(() => {
-    // Helper function to recursively remove countField from schema
-    const filterCountField = (node: TemplateField): TemplateField => {
-      if (node.id === "countField") {
-        return { ...node, excluded: true }; // Mark for exclusion
-      }
+  // Get currentItems and related pagination data
+  const {
+    items: currentItems,
+    indexOfFirstItem,
+    displayInfo,
+  } = currentItemsData;
 
-      if (node.children && node.children.length > 0) {
-        return {
-          ...node,
-          children: node.children
-            .map(filterCountField)
-            .filter((child) => !child.excluded), // Filter out excluded nodes
-        };
-      }
-
-      return node;
-    };
-
-    return filterCountField(enhancedSchema);
-  }, [enhancedSchema]);
-
-  /**
-   * Creates a memoized render function for TreeRenderer to avoid recreating it on every render.
-   * This function:
-   * 1. Takes a tree item and its index
-   * 2. Returns a TreeRenderer component with appropriate props
-   * 3. Connects field changes to the handleFieldChange callback
-   */
-  const renderTreeRenderer = useCallback(
-    (item: TreeItem, index: number) => {
-      return (
-        <TreeRenderer
-          schema={filteredSchema}
-          values={item.values}
-          onChange={(fieldId, value) =>
-            handleFieldChange(index, fieldId, value)
-          }
-        />
-      );
-    },
-    [filteredSchema, handleFieldChange]
-  );
-
+  // ========== RENDER ==========
   return (
-    <Box sx={{ p: 2 }}>
-      <Typography variant="h6" sx={{ mb: 2, textTransform: "capitalize" }}>
-        {title}
-      </Typography>
-      {/* Controls */}
-      <Stack direction="row" spacing={2} sx={{ mb: 3, alignItems: "center" }}>
+    <Box sx={{ p: 1, pt: 0 }}>
+      {/* Controls section */}
+      <Stack direction="row" spacing={2} sx={{ mb: 1, alignItems: "center" }}>
         {hasCountFieldPlaceholder && (
           <TextField
             label={`Antall ${itemLabel}`}
             type="number"
             value={count}
             onChange={(e) => handleCountChange(parseInt(e.target.value) || 1)}
-            InputProps={{ inputProps: { min: 1 } }}
+            slotProps={{ htmlInput: { min: 1 } }}
             size="small"
             sx={{ width: 120 }}
           />
         )}
       </Stack>
 
-      {/* Use the new TreePagination component if we should show pagination */}
+      {/* Top pagination */}
       {shouldShowPagination && (
         <TreePagination
           totalItems={treeItems.length}
           currentPage={currentPage}
-          setCurrentPage={setCurrentPage}
+          setCurrentPage={handlePageChange}
           itemsPerPage={itemsPerPage}
           displayInfo={displayInfo}
           itemLabel={itemLabel}
@@ -921,28 +1074,29 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
             </Typography>
             {shouldShowPagination && (
               <Chip
-                label={`${
-                  currentItemsIndices.indexOfFirstItem + index + 1
-                } av ${treeItems.length}`}
+                label={`${indexOfFirstItem + index + 1} av ${treeItems.length}`}
                 size="small"
                 variant="outlined"
               />
             )}
           </Box>
 
-          {renderTreeRenderer(
-            item,
-            currentItemsIndices.indexOfFirstItem + index
-          )}
+          <TreeRenderer
+            schema={enhancedSchema}
+            values={item.values}
+            onChange={(fieldId, value) =>
+              handleFieldChange(indexOfFirstItem + index, fieldId, value)
+            }
+          />
         </Box>
       ))}
 
-      {/* Show bottom pagination if needed */}
+      {/* Bottom pagination */}
       {shouldShowPagination && (
         <TreePagination
           totalItems={treeItems.length}
           currentPage={currentPage}
-          setCurrentPage={setCurrentPage}
+          setCurrentPage={handlePageChange}
           itemsPerPage={itemsPerPage}
           itemLabel={itemLabel}
           position="bottom"

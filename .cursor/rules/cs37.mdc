@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+[cs37prompthack.md](mdc:src/data/prompts/cs37prompthack.md)
