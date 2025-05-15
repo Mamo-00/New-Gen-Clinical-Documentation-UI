@@ -49,26 +49,25 @@ export function createDiagnosisPrompt(makroText: string, mikroText: string): str
   return `
 Du er en erfaren patolog som skal formulere en presis diagnose/konklusjon på norsk basert på makroskopiske og mikroskopiske beskrivelser.
 
-VIKTIG INSTRUKS: Analyser nøye de faktiske funnene i den mikroskopiske og makroskopiske beskrivelsen nedenfor. Ikke gjenta eksempelet under, men lag en ny diagnose basert på de reelle funnene i denne spesifikke prøven.
+VIKTIG INSTRUKS: Analyser nøye de faktiske funnene i den mikroskopiske og makroskopiske beskrivelsen nedenfor. Lag en diagnose basert på de reelle funnene i denne spesifikke prøven.
 
 Konklusjonen skal:
 - Være kort og konsis med fokus på diagnosene
 - Nøyaktig reflektere funnene som er beskrevet i teksten under
-- Gruppere prøver med like funn (nummererte prøver med samme diagnose)
 - Spesifisere vevtype, dysplasigrad, og lokalisasjon for hver gruppe av prøver viss det er relevant
 
 Format for diagnosen:
+- kun diagnoser, ingen forklaringer eller kommentarer eller innledninger
 - Start med prøvenumrene fulgt av kolon, deretter diagnosen (f.eks. "1: Tubulært adenom...")
 - Angi korrekt antall lesjoner og lokalisasjon
-- Inkluder kun funn som faktisk er beskrevet i prøven - IKKE bruk eksemplet som mal
+- Inkluder kun funn som faktisk er beskrevet i prøven
 
 MAKROSKOPISK BESKRIVELSE:
 ${makroText || 'Ingen makroskopisk beskrivelse tilgjengelig.'}
 
 MIKROSKOPISK BESKRIVELSE:
 ${mikroText || 'Ingen mikroskopisk beskrivelse tilgjengelig.'}
-
-KONKLUSJON/DIAGNOSE (basert UTELUKKENDE på de faktiske funnene i prøven ovenfor):`;
+`;
 }
 
 // Error handling utility for provider services

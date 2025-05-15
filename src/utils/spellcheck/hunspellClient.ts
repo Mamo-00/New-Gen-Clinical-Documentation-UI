@@ -17,30 +17,21 @@ export async function initializeHunspell() {
   ]); */
 
   const nbAffResponse = await fetch('/dictionaries/nb_NO.aff');
-  console.log("nb_NO.aff fetch status:", nbAffResponse.status);
   const nbAff = await nbAffResponse.text();
-  console.log("nbAff length:", nbAff.length);
 
   const nbDicResponse = await fetch('/dictionaries/nb_NO.dic');
-  console.log("nb_NO.aff fetch status:", nbDicResponse.status);
   const nbDic = await nbDicResponse.text();
-  console.log("nbDic length:", nbDic.length);
 
   const nnAffResponse = await fetch('/dictionaries/nn_NO.aff');
-  console.log("nb_NO.aff fetch status:", nnAffResponse.status);
   const nnAff = await nnAffResponse.text();
-  console.log("nnAff length:", nnAff.length);
 
   const nnDicResponse = await fetch('/dictionaries/nn_NO.dic');
-  console.log("nb_NO.aff fetch status:", nnDicResponse.status);
   const nnDic = await nnDicResponse.text();
-  console.log("nnDic length:", nnDic.length);
 
   dictionaries = {
     nb: hunspellFactory.create(nbAff, nbDic),
     nn: hunspellFactory.create(nnAff, nnDic)
   };
-  console.log("Dictionaries created:", dictionaries);
 }
 
 export function checkWord(word: string): boolean {

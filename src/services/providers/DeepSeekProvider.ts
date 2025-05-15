@@ -35,15 +35,12 @@ export class DeepSeekProvider implements BaseAIProvider {
     this.config = { ...this.config, ...config };
     this.apiKey = this.config.apiKey || '';
     this.modelId = this.config.modelId || 'deepseek-chat';
-    
     if (!this.apiKey) {
       console.warn('No API key provided to DeepSeek provider. API calls will fail.');
       this.initialized = false;
       return;
     }
-
     this.initialized = true;
-    console.log(`DeepSeek provider initialized with model: ${this.modelId}`);
   }
 
   /**

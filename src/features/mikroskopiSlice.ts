@@ -281,11 +281,11 @@ export const {
 const selectMikroskopiFieldValues = (state: RootState) =>
   state.mikroskopi.fieldValues;
 export const selectActiveMikroskopiStep = (state: RootState) =>
-  state.mikroskopi.activeStep;
+  state.mikroskopi?.activeStep;
 
-export const selectAllBlockDescriptions = (state: RootState) => state.mikroskopi.allBlockDescriptions;
-export const selectCurrentBlockIndex = (state: RootState) => state.mikroskopi.currentBlockIndex;
-export const selectTotalBlocks = (state: RootState) => state.mikroskopi.totalBlocksForCurrentLesion;
+export const selectAllBlockDescriptions = (state: RootState) => state.mikroskopi?.allBlockDescriptions;
+export const selectCurrentBlockIndex = (state: RootState) => state.mikroskopi?.currentBlockIndex;
+export const selectTotalBlocks = (state: RootState) => state.mikroskopi?.totalBlocksForCurrentLesion;
 
 export const selectCurrentBlockData = createSelector(
     [selectAllBlockDescriptions, selectCurrentBlockIndex],

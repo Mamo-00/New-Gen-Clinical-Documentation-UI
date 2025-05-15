@@ -153,7 +153,6 @@ const collectAllTreeItemValues = (
         // Store the base field value
         const defaultValue = findFieldDefaultValue(key, schema);
         allValues[key] = defaultValue || value;
-        
       } else if (key.includes(`_${lineNumber}`)) {
         // Store existing indexed keys that match this item's line number
         allValues[key] = value;
@@ -261,7 +260,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
 
   const { setContent: setEditorContent } = useEditor();
   const { selectedTemplate, setSelectedTemplate } = useTemplate();
-  const [sourceTemplate, setSourceTemplate] = useState<string>("");
   const [enhancedSchema, setEnhancedSchema] = useState<TemplateField>(schema);
   const [count, setCount] = useState<number>(schema.countField || 1);
   const [hasCountFieldPlaceholder, setHasCountFieldPlaceholder] =
@@ -269,10 +267,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
 
   // Reference to track previous page
   const prevPageRef = useRef<number>(currentPage);
-
-  
-
-  
 
   /**
    * Adjusts the template text when count changes.
@@ -412,9 +406,9 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
 
     return template;
   };
-  
+
   // ========== CALLBACKS ========== //
-   
+
   /**
    * Enhances schema with placeholders found in the template.
    */
@@ -542,54 +536,56 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
           fieldId,
           value,
           lineNumber,
-          updateBaseField: true // Always update base field for the primary item being edited
+          updateBaseField: true, // Always update base field for the primary item being edited
         })
       );
 
-        // Update foreign field on all other tree items
-        treeItems.forEach((item, idx) => {
-          if (idx !== itemIndex) {
-            // Skip the item we just updated
-            const itemLineNumber = item.lineNumber;
+      // Update foreign field on all other tree items
+      treeItems.forEach((item, idx) => {
+        if (idx !== itemIndex) {
+          // Skip the item we just updated
+          const itemLineNumber = item.lineNumber;
 
-            // Also update the indexed version for this line
-            if (itemLineNumber > 0) {
-              // Update the indexed version that corresponds to the original item being changed
-              // For example, if changing tree item 1's measurement_1, update measurement_1 in all other items
-              const indexedFieldId = `${baseFieldId}_${lineNumber}`;
-              
-              dispatch(
-                updateTreeItemValue({
-                  itemIndex: idx,
-                  fieldId: indexedFieldId,
-                  value,
-                  lineNumber: itemLineNumber,
-                  updateBaseField: false // Don't update base field for other items
-                })
-              );
-            }
+          // Also update the indexed version for this line
+          if (itemLineNumber > 0) {
+            // Update the indexed version that corresponds to the original item being changed
+            // For example, if changing tree item 1's measurement_1, update measurement_1 in all other items
+            const indexedFieldId = `${baseFieldId}_${lineNumber}`;
+
+            dispatch(
+              updateTreeItemValue({
+                itemIndex: idx,
+                fieldId: indexedFieldId,
+                value,
+                lineNumber: itemLineNumber,
+                updateBaseField: false, // Don't update base field for other items
+              })
+            );
           }
-        });
-     
+        }
+      });
 
       // Update the template after the state changes
       setTimeout(() => {
-        if (selectedTemplate && sourceTemplate) {
+        if (selectedTemplate && selectedTemplate.originalText) {
           // Get the latest state from Redux
           const currentState = store.getState().tree;
           const latestTreeItems = currentState.treeItems;
           console.log("count in handleFieldChange:", count);
-          
 
           // Collect all values from the tree items
-          const allValues = collectAllTreeItemValues(latestTreeItems, count, schemaToUse);
+          const allValues = collectAllTreeItemValues(
+            latestTreeItems,
+            count,
+            schemaToUse
+          );
 
           // Ensure countField is set correctly
           allValues.countField = count;
 
           // Update the template
           const updatedTemplate = updateTemplateFromTree(
-            sourceTemplate,
+            selectedTemplate.originalText,
             allValues
           );
 
@@ -607,8 +603,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
     [
       treeItems,
       selectedTemplate,
-      sourceTemplate,
-      setSelectedTemplate,
       setEditorContent,
       editorId,
       dispatch,
@@ -634,7 +628,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       // Update count state
       setCount(newCount);
 
-      if (hasCountFieldPlaceholder && selectedTemplate && sourceTemplate) {
+      if (hasCountFieldPlaceholder && selectedTemplate && selectedTemplate.originalText) {
         // Use selectedTemplate text as base
         const currentTemplateText = selectedTemplate.text;
         console.log("currentTemplateText:", currentTemplateText);
@@ -643,10 +637,13 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
         const { schemaToUse } = enhancedSchemaData;
 
         // Combine all initial values
-        const allValues = collectAllTreeItemValues(treeItems, newCount, schemaToUse);
+        const allValues = collectAllTreeItemValues(
+          treeItems,
+          newCount,
+          schemaToUse
+        );
         console.log("treeItems in handleCountChange:", treeItems);
         console.log("allValues in handleCountChange:", allValues);
-        
 
         // Double-check that countField is set correctly
         allValues.countField = newCount;
@@ -693,9 +690,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
     [
       treeItems,
       selectedTemplate,
-      sourceTemplate,
-      hasCountFieldPlaceholder,
-      setSelectedTemplate,
       setEditorContent,
       editorId,
       schema,
@@ -740,15 +734,20 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       },
     };
   }, [treeItems, currentPage, itemsPerPage]);
-  
-  const enhancedSchemaData: { schemaToUse: TemplateField; filteredForeignFields: TemplateField[] } = useMemo(() => {
+
+  const enhancedSchemaData: {
+    schemaToUse: TemplateField;
+    filteredForeignFields: TemplateField[];
+  } = useMemo(() => {
     return enhanceSchemaWithForeignPlaceholders(
-      selectedTemplate?.originalText || sourceTemplate || "",
+      selectedTemplate?.originalText || "",
       schema
     );
-  }, [selectedTemplate?.originalText, sourceTemplate, schema, enhanceSchemaWithForeignPlaceholders]);
-
-  
+  }, [
+    selectedTemplate?.originalText,
+    schema,
+    enhanceSchemaWithForeignPlaceholders,
+  ]);
 
   // ========== EFFECTS ==========
   /**
@@ -783,9 +782,8 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
    * Initialize the component when a template is loaded.
    */
   useEffect(() => {
-    if (selectedTemplate?.originalText || sourceTemplate === selectedTemplate?.originalText) {
-      const originalText =
-        selectedTemplate.originalText || selectedTemplate.text;
+    if (selectedTemplate?.originalText) {
+      const originalText = selectedTemplate.originalText;
       console.log("when do i run? must be now");
 
       // Check for countField
@@ -796,8 +794,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       const { lineNumbers, maxLineNumber } =
         detectAndExtractNumberedLines(originalText);
 
-      // Set source template
-      setSourceTemplate(originalText);
       dispatch(setTemplateText(originalText));
 
       // If we have numbered lines with countField, set the count
@@ -806,7 +802,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       }
 
       // Enhance schema with any foreign placeholders
-      //TODO ALERT!!
       const { schemaToUse } = enhancedSchemaData;
 
       // Extract values from template
@@ -840,7 +835,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
    * Only run when the page actually changes.
    */
   useEffect(() => {
-    if (prevPageRef.current !== currentPage && sourceTemplate) {
+    if (prevPageRef.current !== currentPage && selectedTemplate?.originalText) {
       console.log(`📄 Page changed to ${currentPage}, updating template`);
       prevPageRef.current = currentPage;
 
@@ -851,9 +846,13 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
           fixTreeItemsIndexing(treeItems, selectedTemplate.text, dispatch);
 
           const { schemaToUse } = enhancedSchemaData;
-          
+
           // Update template with the latest values if needed
-          const allValues = collectAllTreeItemValues(treeItems, count, schemaToUse);
+          const allValues = collectAllTreeItemValues(
+            treeItems,
+            count,
+            schemaToUse
+          );
           console.log("allValues in useEffect:", allValues);
           console.log("count in useEffect:", count);
 
@@ -861,7 +860,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
           allValues.countField = count;
 
           const updatedTemplate = updateTemplateFromTree(
-            sourceTemplate,
+            selectedTemplate.originalText,
             allValues
           );
 
@@ -878,7 +877,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
     }
   }, [
     currentPage,
-    sourceTemplate,
+    selectedTemplate?.originalText,
     treeItems,
     dispatch,
     count,
@@ -886,40 +885,52 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   ]);
 
   /**
-   * Populate the template with initial values once sourceTemplate and treeItems are set.
+   * Populate the template with initial values once treeItems are set.
    * This effect:
    * 1. Combines all values from tree items with the proper indexing
    * 2. Updates the template text with these values
    * 3. Updates the editor content
    */
   useEffect(() => {
-    if (selectedTemplate && sourceTemplate && treeItems.length > 0) {
+    if (selectedTemplate?.originalText && treeItems.length > 0) {
       // Only run this effect on initial load, not on every treeItems change
       // We use the useEffect for field changes to handle template updates after changes
 
       // Prepare values for template update, including both indexed and non-indexed
       const currentState = store.getState().tree;
       const latestTreeItems = currentState.treeItems;
-      const allValues = collectAllTreeItemValues(latestTreeItems, count, schema);
+      
+      const allValues = collectAllTreeItemValues(
+        latestTreeItems,
+        count,
+        schema
+      );
 
       console.log("latestTreeItems:", latestTreeItems);
       console.log("before updateTemplateFromTree with allValues: ", allValues);
 
       const initialTemplateText = updateTemplateFromTree(
-        sourceTemplate,
+        selectedTemplate.originalText,
         allValues
       );
-      console.log("after updateTemplateFromTree:", initialTemplateText);
+      
       setSelectedTemplate({
         ...selectedTemplate,
         text: initialTemplateText,
       });
-
+      console.log("after updateTemplateFromTree:", initialTemplateText);
       setEditorContent(editorId, initialTemplateText);
     }
-    // Only run on sourceTemplate change, not on treeItems changes
+    
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceTemplate, editorId, count, selectedTemplate?.originalText, selectedTemplate?.timestamp]);
+  }, [
+    selectedTemplate?.originalText,
+    editorId,
+    count,
+    selectedTemplate?.originalText,
+    selectedTemplate?.text,
+    treeItems
+  ]);
 
   /**
    * Ensure tree items have appropriate indexed values

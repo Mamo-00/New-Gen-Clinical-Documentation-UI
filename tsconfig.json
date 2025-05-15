@@ -12,7 +12,9 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "lib": ["es6"],
-    "noEmit": true,
+    "declaration": true,
+    "declarationDir": "./dist/types",
+    "outDir": "./dist/js",
     "composite": true
   },
   "include": ["src", "src/globals.d.ts"],

@@ -80,6 +80,7 @@ export class OllamaProvider implements BaseAIProvider {
 
       // Call the Ollama API
       const response = await fetch(endpoint, {
+        mode: 'no-cors',
         method: 'POST',
         headers,
         body: JSON.stringify(payload)

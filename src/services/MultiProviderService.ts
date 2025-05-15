@@ -4,6 +4,7 @@ import { AnthropicProvider } from './providers/AnthropicProvider';
 import { DeepSeekProvider } from './providers/DeepSeekProvider';
 import { LlamaProvider } from './providers/LlamaProvider';
 import { OllamaProvider } from './providers/OllamaProvider';
+import { GeminiProvider } from './providers/GeminiProvider';
 import { HuggingFaceProvider } from './providers/index';
 import { ModelConfig, ModelService } from './ModelServiceFactory';
 
@@ -29,6 +30,7 @@ export class MultiProviderService implements ModelService {
     this.providers.set(AIProviderType.DEEPSEEK, DeepSeekProvider.getInstance());
     this.providers.set(AIProviderType.LLAMA, LlamaProvider.getInstance());
     this.providers.set(AIProviderType.OLLAMA, OllamaProvider.getInstance());
+    this.providers.set(AIProviderType.GEMINI, GeminiProvider.getInstance());
   }
 
   /**
@@ -59,12 +61,6 @@ export class MultiProviderService implements ModelService {
       throw new Error(`Provider ${this.activeProvider} not found`);
     }
 
-    console.log('apiKey: ',this.config.apiKey);
-    console.log('modelId: ',this.config.modelId);
-    console.log('temperature: ',this.config.temperature);
-    console.log('maxTokens: ',this.config.maxTokens);
-    console.log('task: ',this.config.task);
-
     // Initialize the provider with the configuration
     await provider.initialize({
       apiKey: this.config.apiKey || '0a79ec08-ef67-48f2-b808-c12ab69ace33',
@@ -73,8 +69,6 @@ export class MultiProviderService implements ModelService {
       maxTokens: this.config.maxTokens,
       task: this.config.task
     });
-
-    console.log(`MultiProviderService initialized with provider: ${this.activeProvider}, model: ${this.config.modelId}`);
   }
 
   /**
@@ -147,6 +141,8 @@ export class MultiProviderService implements ModelService {
         return LlamaProvider.getModelOptions();
       case AIProviderType.OLLAMA:
         return OllamaProvider.getModelOptions();
+      case AIProviderType.GEMINI:
+        return GeminiProvider.getModelOptions();
       default:
         return [];
     }
@@ -162,7 +158,8 @@ export class MultiProviderService implements ModelService {
       ...AnthropicProvider.getModelOptions(),
       ...DeepSeekProvider.getModelOptions(),
       ...LlamaProvider.getModelOptions(),
-      ...OllamaProvider.getModelOptions()
+      ...OllamaProvider.getModelOptions(),
+      ...GeminiProvider.getModelOptions()
     ];
   }
 }

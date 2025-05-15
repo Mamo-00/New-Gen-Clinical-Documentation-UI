@@ -167,7 +167,7 @@
           "defaultValue": 0,
           "conditionalOn": "mitoticActivityObserved",
           "conditionalValue": true,
-          "generatesText": "{{value > 0 ? value +  mitoser per 10 HPF. : }}"
+          "generatesText": "{{value > 0 ? value + ' ' + mitoser per 10 HPF. : ''}}"
         },
         {
           "id": "atypicalMitoses",

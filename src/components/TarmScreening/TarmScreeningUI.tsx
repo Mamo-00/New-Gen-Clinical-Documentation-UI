@@ -393,8 +393,8 @@ export const TarmScreeningUI: React.FC<TarmScreeningUIProps> = ({
           ? generatedSnippets.join(" ")
           : generatedSnippets[0] || "";
       return combinedText
-        ? `Blokk #${blockData.blockNumber}: ${combinedText}`
-        : `Blokk #${blockData.blockNumber}: Ingen spesifikke strukturerte funn angitt.`;
+        ? `#${blockData.blockNumber}: ${combinedText}`
+        : `#${blockData.blockNumber}: Ingen spesifikke strukturerte funn angitt.`;
     },
     [allBlockData]
   );
@@ -417,7 +417,6 @@ export const TarmScreeningUI: React.FC<TarmScreeningUIProps> = ({
   }, [
     generateTextSnippetForBlock,
     totalBlocks,
-    getContent,
     setContent,
     editorIdTarget,
     allBlockData,

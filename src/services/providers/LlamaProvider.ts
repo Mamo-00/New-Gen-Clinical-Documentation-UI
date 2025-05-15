@@ -35,15 +35,12 @@ export class LlamaProvider implements BaseAIProvider {
     this.config = { ...this.config, ...config };
     this.apiKey = this.config.apiKey || '';
     this.modelId = this.config.modelId || 'Llama-3.1-70B-Instruct';
-    
     if (!this.apiKey) {
       console.warn('No API key provided to Llama provider. API calls will fail.');
       this.initialized = false;
       return;
     }
-
     this.initialized = true;
-    console.log(`Llama provider initialized with model: ${this.modelId}`);
   }
 
   /**

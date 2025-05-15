@@ -27,6 +27,10 @@ interface EditorState {
   content: string;
   wordCount: number;
   lastSaved: Date | null;
+  history: {
+    past: string[];
+    future: string[];
+  };
 }
 
 interface EditorContextType {
@@ -45,7 +49,8 @@ interface EditorContextType {
   pinned: boolean;
   handlePin: () => void;
   handleSave: (editorId: string) => void;
-  handleUndo: () => void;
+  handleUndo: (editorId: string) => void;
+  handleRedo: (editorId: string) => void;
   handleResize: (event: any, { size }: any) => void;
   spellCheckEnabled: boolean;
   setSpellCheckEnabled: (enabled: boolean) => void;
@@ -103,7 +108,11 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({
       newEditorStates[id] = {
         content: savedContent || "",
         wordCount: savedContent ? savedContent.split(/\s+/).filter(Boolean).length : 0,
-        lastSaved: savedDate ? new Date(savedDate) : null
+        lastSaved: savedDate ? new Date(savedDate) : null,
+        history: {
+          past: [],
+          future: []
+        }
       };
     });
     
@@ -125,14 +134,26 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [editorStates]);
 
   const setContent = useCallback((editorId: string, content: string) => {
-    setEditorStates(prev => ({
-      ...prev,
-      [editorId]: {
-        ...prev[editorId] || { wordCount: 0, lastSaved: null },
-        content,
-        wordCount: content.split(/\s+/).filter(Boolean).length
+    setEditorStates(prev => {
+      const currentState = prev[editorId] || { content: "", wordCount: 0, lastSaved: null, history: { past: [], future: [] } };
+      
+      // Only add to history if content actually changed
+      if (content !== currentState.content) {
+        return {
+          ...prev,
+          [editorId]: {
+            content,
+            wordCount: content.split(/\s+/).filter(Boolean).length,
+            lastSaved: currentState.lastSaved,
+            history: {
+              past: [...currentState.history.past, currentState.content],
+              future: [] // Clear future history when new content is added
+            }
+          }
+        };
       }
-    }));
+      return prev;
+    });
   }, []);
 
   const getWordCount = useCallback((editorId: string) => {
@@ -197,13 +218,51 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem(`lastSaved_${editorId}`, now.toISOString());
   }, [getContent, setLastSaved]);
 
-  const handleUndo = () => {
-    // Implement undo logic (if needed)
-  };
+  const handleUndo = useCallback((editorId: string) => {
+    setEditorStates(prev => {
+      const currentState = prev[editorId];
+      if (!currentState || currentState.history.past.length === 0) return prev;
 
-  const handleRedo = () => {
-    // Implement undo logic (if needed)
-  };
+      const previousContent = currentState.history.past[currentState.history.past.length - 1];
+      const newPast = currentState.history.past.slice(0, -1);
+
+      return {
+        ...prev,
+        [editorId]: {
+          content: previousContent,
+          wordCount: previousContent.split(/\s+/).filter(Boolean).length,
+          lastSaved: currentState.lastSaved,
+          history: {
+            past: newPast,
+            future: [currentState.content, ...currentState.history.future]
+          }
+        }
+      };
+    });
+  }, []);
+
+  const handleRedo = useCallback((editorId: string) => {
+    setEditorStates(prev => {
+      const currentState = prev[editorId];
+      if (!currentState || currentState.history.future.length === 0) return prev;
+
+      const nextContent = currentState.history.future[0];
+      const newFuture = currentState.history.future.slice(1);
+
+      return {
+        ...prev,
+        [editorId]: {
+          content: nextContent,
+          wordCount: nextContent.split(/\s+/).filter(Boolean).length,
+          lastSaved: currentState.lastSaved,
+          history: {
+            past: [...currentState.history.past, currentState.content],
+            future: newFuture
+          }
+        }
+      };
+    });
+  }, []);
 
   const setSpellCheckEnabledAndPersist = (enabled: boolean) => {
     setSpellCheckEnabled(enabled);
@@ -233,6 +292,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({
         handlePin,
         handleSave,
         handleUndo,
+        handleRedo,
         handleResize,
         editorRef,
       }}

@@ -23,6 +23,7 @@ import { useEditor } from "../../context/EditorContext";
 import { useContainerWidth } from "../../utils/hooks/useContainerWidth";
 import { Save } from "@mui/icons-material";
 import { Undo } from "@mui/icons-material";
+import { Redo } from "@mui/icons-material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PsychologyIcon from "@mui/icons-material/Psychology";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -39,7 +40,7 @@ interface MainToolbarProps {
 }
 
 const MainPage: React.FC = () => {
-  const { handleSave, handleUndo, getContent, setContent } = useEditor();
+  const { handleSave, handleUndo, handleRedo, getContent, setContent } = useEditor();
   const { containerRef, showButtonText } = useContainerWidth(375);
 
   const { selectedTemplate } = useTemplate();
@@ -236,21 +237,40 @@ const MainPage: React.FC = () => {
               </Tooltip>
             </>
           )}
-          <Button
-            onClick={handleUndo}
-            variant="outlined"
-            startIcon={<Undo />}
-            size="small"
-            sx={{
-              minWidth: showButtonText ? "auto" : "40px",
-              "& .MuiButton-startIcon": {
-                mr: showButtonText ? 1 : 0,
-                ml: showButtonText ? 0 : 0,
-              },
-            }}
-          >
-            {showButtonText ? "Angre" : ""}
-          </Button>
+          <Tooltip title="Angre (Ctrl+Z)">
+            <Button
+              onClick={() => handleUndo(editorId)}
+              variant="outlined"
+              startIcon={<Undo />}
+              size="small"
+              sx={{
+                minWidth: showButtonText ? "auto" : "40px",
+                "& .MuiButton-startIcon": {
+                  mr: showButtonText ? 1 : 0,
+                  ml: showButtonText ? 0 : 0,
+                },
+              }}
+            >
+              {showButtonText ? "Angre" : ""}
+            </Button>
+          </Tooltip>
+          <Tooltip title="Gjør om (Ctrl+Y)">
+            <Button
+              onClick={() => handleRedo(editorId)}
+              variant="outlined"
+              startIcon={<Redo />}
+              size="small"
+              sx={{
+                minWidth: showButtonText ? "auto" : "40px",
+                "& .MuiButton-startIcon": {
+                  mr: showButtonText ? 1 : 0,
+                  ml: showButtonText ? 0 : 0,
+                },
+              }}
+            >
+              {showButtonText ? "Gjør om" : ""}
+            </Button>
+          </Tooltip>
           <Button
             onClick={() => handleSave(editorId)}
             variant="contained"
@@ -497,7 +517,7 @@ const MainPage: React.FC = () => {
             <Box sx={{ p: 2, border: "1px solid grey", borderRadius: 1 }}>
               <Typography variant="body1">
                 Ingen mal er valgt. Vennligst velg en mal via "Maler" knappen på
-                toppen av siden for å vise treet.
+                toppen av siden for å vise treet. D
               </Typography>
             </Box>
           )}

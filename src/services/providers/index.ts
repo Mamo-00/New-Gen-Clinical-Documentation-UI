@@ -4,6 +4,7 @@ export * from './DeepSeekProvider';
 export * from './AnthropicProvider';
 export * from './LlamaProvider';
 export * from './OllamaProvider';
+export * from './GeminiProvider';
 
 // Add HuggingFace provider as a direct API option instead of via the InferenceClient
 import { AIProviderConfig, BaseAIProvider, TextGenerationOptions, handleProviderError } from './BaseAIProvider';
@@ -157,6 +158,7 @@ export enum AIProviderType {
   DEEPSEEK = 'deepseek',
   LLAMA = 'llama',
   OLLAMA = 'ollama',
+  GEMINI = 'gemini',
   LOCAL = 'local' // Keep local inference as an option
 }
 
@@ -168,5 +170,6 @@ export const AI_PROVIDER_NAMES = {
   [AIProviderType.DEEPSEEK]: 'DeepSeek API',
   [AIProviderType.LLAMA]: 'Meta Llama API',
   [AIProviderType.OLLAMA]: 'Ollama API',
+  [AIProviderType.GEMINI]: 'Google Gemini API',
   [AIProviderType.LOCAL]: 'Lokal inferens'
 }; 

@@ -18,8 +18,7 @@ const TemplateContext = createContext<TemplateContextType | undefined>(undefined
 export const TemplateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateData | null>(null);
   
-  // Add debug logging for template updates
-  const  setTemplateWithLog= (template: TemplateData | null) => {
+  const setTemplate= (template: TemplateData | null) => {
     // Ensure originalText is always set when a new template is selected
     const updatedTemplate = template ? {
       ...template,
@@ -42,7 +41,7 @@ export const TemplateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [selectedTemplate]); */
   
   return (
-    <TemplateContext.Provider value={{ selectedTemplate, setSelectedTemplate: setTemplateWithLog }}>
+    <TemplateContext.Provider value={{ selectedTemplate, setSelectedTemplate: setTemplate }}>
       {children}
     </TemplateContext.Provider>
   );

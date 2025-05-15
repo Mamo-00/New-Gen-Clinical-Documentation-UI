@@ -41,17 +41,11 @@ export class AIService {
    */
   public initialize(config: Partial<AIServiceConfig>): void {
     this.config = { ...this.config, ...config };
-    
     if (!this.config.apiKey) {
       console.warn('No API key provided to AIService. API calls will fail.');
       return;
     }
-    
-    // Create a new InferenceClient instance with the API key
     this.hf = new InferenceClient(this.config.apiKey);
-    
-    // Log that we've initialized with a valid key (but don't show the key)
-    console.log(`AIService initialized with model: ${this.config.modelId}, task: ${this.config.task}`);
   }
 
   /**

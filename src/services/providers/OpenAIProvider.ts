@@ -35,15 +35,12 @@ export class OpenAIProvider implements BaseAIProvider {
     this.config = { ...this.config, ...config };
     this.apiKey = this.config.apiKey || '';
     this.modelId = this.config.modelId || 'gpt-3.5-turbo';
-    
     if (!this.apiKey) {
       console.warn('No API key provided to OpenAI provider. API calls will fail.');
       this.initialized = false;
       return;
     }
-
     this.initialized = true;
-    console.log(`OpenAI provider initialized with model: ${this.modelId}`);
   }
 
   /**
