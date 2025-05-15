@@ -147,14 +147,10 @@ export function updateTemplateFromTree(
                 new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, "g"),
                 String(lineValue)
               );
-            } else {
             }
           }
-
           return updatedLine;
         }
-        // Skip lines that should be removed (lineNum > targetCount)
-
         return null;
       }
 
@@ -239,9 +235,9 @@ export function updateTemplateFromTree(
             new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, "g"),
             String(lineValueMap[i][placeholder])
           );
-        } else {
         }
       }
+
       lines.push(newLine);
     }
   }

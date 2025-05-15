@@ -520,7 +520,7 @@ const MainPage: React.FC = () => {
             <Box sx={{ p: 2, border: "1px solid grey", borderRadius: 1 }}>
               <Typography variant="body1">
                 Ingen mal er valgt. Vennligst velg en mal via "Maler" knappen på
-                toppen av siden for å vise treet. Du kan også skrive "tempalte:" i 
+                toppen av siden for å vise treet. Du kan også skrive "template:" i 
                 makroskopisk skrivefelt for få opp templat som du kan velge mellom og 
                 vise treet på den måten.
               </Typography>

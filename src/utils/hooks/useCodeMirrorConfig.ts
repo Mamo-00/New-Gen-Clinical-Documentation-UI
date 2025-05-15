@@ -7,6 +7,7 @@ import { CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 import { linter, Diagnostic } from "@codemirror/lint";
 import { SpellCheckerService } from "../../services/SpellCheckerService";
 import { MacroTemplate } from "../templates/macroTemplateService";
+
 const MAX_LINE_LENGTH = 85; // Set your desired max line length
 
 interface CodeMirrorConfigProps {
@@ -72,15 +73,6 @@ export const useCodeMirrorConfig = ({
   
   
     const handler = (context: CompletionContext): CompletionResult | null => {
-      // Create a tracker for this completion process
-      // const tracker = trackCompletionProcess(`completion-${editorId}`);
-      
-      // Check for template trigger before calling getCompletions
-      const beforeText = context.state.doc.sliceString(
-        Math.max(0, context.pos - 20), 
-        context.pos
-      );
-      
       // Use the ref to get the current getCompletions function
       const result = getCompletionsRef.current(context);
       if (!result) {
