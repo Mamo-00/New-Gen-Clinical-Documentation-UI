@@ -8,7 +8,7 @@ import { linter, Diagnostic } from "@codemirror/lint";
 import { SpellCheckerService } from "../../services/SpellCheckerService";
 import { MacroTemplate } from "../templates/macroTemplateService";
 
-const MAX_LINE_LENGTH = 85; // Set your desired max line length
+const MAX_LINE_LENGTH = 90; // Set your desired max line length
 
 interface CodeMirrorConfigProps {
   content: string;
