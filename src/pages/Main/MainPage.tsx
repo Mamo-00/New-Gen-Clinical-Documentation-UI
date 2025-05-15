@@ -53,6 +53,8 @@ const MainPage: React.FC = () => {
     localStorage.getItem('inference_mode') as ModelServiceType || ModelServiceType.REMOTE
   );
   const [modelService, setModelService] = useState<ModelService | null>(null);
+  const [accordionExpanded, setAccordionExpanded] = useState(true);
+  const [accordionExpandedMikro, setAccordionExpandedMikro] = useState(true);
   
   // Initialize the model service
   useEffect(() => {
@@ -487,7 +489,8 @@ const MainPage: React.FC = () => {
                     border: 2,
                     borderColor: "divider",
                   }}
-                  expanded={true}
+                  expanded={accordionExpanded}
+                  onChange={(_, isExpanded) => setAccordionExpanded(isExpanded)}
                 >
                   <AccordionSummary
                     expandIcon={<ExpandMoreIcon />}
@@ -517,11 +520,38 @@ const MainPage: React.FC = () => {
             <Box sx={{ p: 2, border: "1px solid grey", borderRadius: 1 }}>
               <Typography variant="body1">
                 Ingen mal er valgt. Vennligst velg en mal via "Maler" knappen på
-                toppen av siden for å vise treet. D
+                toppen av siden for å vise treet. Du kan også skrive "tempalte:" i 
+                makroskopisk skrivefelt for få opp templat som du kan velge mellom og 
+                vise treet på den måten.
               </Typography>
             </Box>
           )}
-          <TarmScreeningUI editorIdTarget="mikroskopisk" />
+          
+          <Accordion
+                  sx={{
+                    backgroundColor: "background.default",
+                    border: 2,
+                    borderColor: "divider",
+                    mt: 2
+                  }}
+                  expanded={accordionExpandedMikro}
+                  onChange={(_, isExpanded) => setAccordionExpandedMikro(isExpanded)}
+                >
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    aria-controls="mikroskopi-content"
+                    id="mikroskopi-header"
+                    sx={{ my: 0 }}
+                  >
+                    <Typography
+                      variant="h5"
+                      sx={{ textTransform: "capitalize" }}
+                    >{`Mikroskopisk Beskrivelse`}</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <TarmScreeningUI editorIdTarget="mikroskopisk" />
+                  </AccordionDetails>
+                </Accordion>
         </Grid>
       </Grid>
       
