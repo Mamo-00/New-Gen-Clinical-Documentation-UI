@@ -60,6 +60,7 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
         text: content,
         originalText: content, // Set the original content
         category: templateInfo.category,
+        timestamp: new Date().getTime(),
       };
       setSelectedTemplate(templateData);
       setEditorContent(targetEditorId, content);
@@ -72,7 +73,7 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
 
   // Optionally, for user-created templates:
   const insertTemplateIntoEditor = (templateContent: string, category: string) => {
-    setSelectedTemplate({ text: templateContent, category, originalText: templateContent });
+    setSelectedTemplate({ text: templateContent, category, originalText: templateContent, timestamp: new Date().getTime()});
     setEditorContent(targetEditorId, templateContent);
   };
 

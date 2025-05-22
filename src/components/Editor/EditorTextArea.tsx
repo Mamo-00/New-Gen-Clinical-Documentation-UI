@@ -184,10 +184,117 @@ const EditorTextArea: React.FC<EditorTextAreaProps> = ({ editorId }) => {
       }
     };
 
+    // Add paste event handler to format pasted content
+    const handlePaste = (event: ClipboardEvent) => {
+      // Let the default handler work if no text is being pasted
+      const pastedText = event.clipboardData?.getData('text');
+      if (!pastedText || !spellCheckEnabled) return;
+
+      // Prevent the default paste behavior
+      event.preventDefault();
+
+      // Apply advanced formatting rules to the pasted text
+      let formatted = pastedText;
+      
+      // 1. Fix multiple consecutive spaces
+      formatted = formatted.replace(/[ ]{2,}/g, ' ');
+      
+      // 2. Fix spacing after punctuation
+      formatted = formatted.replace(/([.,:;!?])([^\s])/g, '$1 $2');
+      
+      // 3. Fix multiple empty lines
+      formatted = formatted.replace(/\n{3,}/g, '\n\n');
+      
+      // 4. Properly handle paragraphs and word wrapping
+      const MAX_LINE_LENGTH = 85;
+      
+      // First split into paragraphs to preserve paragraph structure
+      const paragraphs = formatted.split(/\n\s*\n/);
+      const formattedParagraphs = paragraphs.map(paragraph => {
+        // Identify if this is a numbered section (e.g., "#1:", "#2:")
+        const isNumberedSection = /^#\d+:/.test(paragraph);
+        let prefix = '';
+        
+        // If it's a numbered section, preserve the section marker
+        if (isNumberedSection) {
+          const match = paragraph.match(/^(#\d+:)\s*/);
+          if (match) {
+            prefix = match[1] + ' ';
+            paragraph = paragraph.substring(match[0].length);
+          }
+        }
+        
+        // Now format the paragraph content
+        // Replace existing newlines with spaces to reflow the text
+        const normalizedText = paragraph.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+        
+        if (normalizedText.length <= MAX_LINE_LENGTH && !isNumberedSection) {
+          return normalizedText;
+        }
+        
+        // Break into words and rebuild with proper wrapping
+        const words = normalizedText.split(' ');
+        const lines = [];
+        let currentLine = isNumberedSection ? prefix : '';
+        
+        for (let i = 0; i < words.length; i++) {
+          const word = words[i];
+          
+          // Check if adding this word would exceed the line length
+          if (currentLine.length + word.length + 1 > MAX_LINE_LENGTH && currentLine.length > 0) {
+            lines.push(currentLine);
+            currentLine = '';
+          }
+          
+          // Add word to current line
+          if (currentLine.length === 0) {
+            currentLine = word;
+          } else {
+            currentLine += ' ' + word;
+          }
+          
+          // Handle special cases for medical terminology
+          if (i < words.length - 1) {
+            const nextWord = words[i+1];
+            
+            // If keeping them together would exceed line length, start a new line now
+            if (currentLine.length + nextWord.length + 1 > MAX_LINE_LENGTH) {
+              lines.push(currentLine);
+              currentLine = '';
+            }
+          }
+        }
+        
+        // Add the last line if there's anything left
+        if (currentLine.length > 0) {
+          lines.push(currentLine);
+        }
+        
+        return lines.join('\n');
+      });
+      
+      formatted = formattedParagraphs.join('\n\n');
+      
+      // Get cursor position
+      const selection = view.state.selection.main;
+      
+      // Insert the formatted text at cursor position
+      view.dispatch({
+        changes: {
+          from: selection.from,
+          to: selection.to,
+          insert: formatted
+        },
+        selection: { anchor: selection.from + formatted.length }
+      });
+    };
+
     view.dom.addEventListener("contextmenu", handleContextMenu);
+    view.dom.addEventListener("paste", handlePaste);
 
     return () => {
       view.dom.removeEventListener("contextmenu", handleContextMenu);
+      view.dom.removeEventListener("paste", handlePaste);
       view.destroy();
       editorRef.current = null;
       editorInitializedRef.current = false;

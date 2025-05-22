@@ -21,11 +21,34 @@
 .cm-tooltip-autocomplete ul {
   max-height: 300px !important;
   scrollbar-width: thin;
+  position: relative;
+}
+
+/* Add arrow key navigation hint */
+.cm-tooltip-autocomplete ul::after {
+  content: "↑↓ to navigate";
+  display: block;
+  position: absolute;
+  bottom: 2px;
+  right: 5px;
+  font-size: 10px;
+  color: #777;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 2px 5px;
+  border-radius: 3px;
+  pointer-events: none;
 }
 
 /* Ensure completion list doesn't disappear too quickly */
 .cm-tooltip-autocomplete {
   transition: opacity 0.1s ease-in-out;
+}
+
+/* Improve arrow key navigation visual feedback */
+.cm-tooltip-autocomplete ul li[aria-selected] {
+  background-color: rgba(25, 118, 210, 0.12) !important;
+  border-left: 3px solid #1976d2 !important;
+  font-weight: 500 !important;
 }
 
 /* Style selected item */

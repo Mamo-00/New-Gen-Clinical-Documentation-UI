@@ -1,0 +1,4 @@
+{{glassCount}} glass.
+1: {{grynCount}} gryn i # 1.
+2: Inneholder {{vevsbitCount}} mulig bredbaset polypp. Ene måler {{lengde1}} x {{bredde1}} x {{hoyde1}} mm. Andre måler {{lengde2}} x {{bredde2}} x {{hoyde2}} mm. Begge orienteres i # 2. Tredje måler {{lengde3}} x {{bredde3}} x {{hoyde3}} mm. Todeles i # 3.
+3: Inneholder en liten mulig bredbaset polypp, måler cirka {{lengde4}} ganger {{bredde4}} x {{hoyde4}} mm. Forsøkes orienteres i # 4. 

@@ -30,6 +30,7 @@ import {
   updateTreeItemCount,
 } from "../../features/treeSlice";
 import { store } from "../../app/store";
+import { glass, hudbit, traadvev, polypp, tarmscreening } from "./utilities/tree-schema";
 
 // ========== UTILITY FUNCTIONS ==========
 
@@ -459,10 +460,26 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
 
         // Create enhanced schema only if we have foreign fields
         if (filteredForeignFields.length > 0) {
+          // Find which schema the foreign fields belong to
+          const allSchemas = [glass, hudbit, traadvev, polypp, tarmscreening];
+          let foreignSchemaLabel = "Ekstra Felt"; // Default fallback
+
+          // Check each schema to find which one contains these fields
+          for (const schema of allSchemas) {
+            const flatSchema = flattenSchema(schema);
+            const schemaFields = Object.keys(flatSchema);
+            
+            // If all foreign fields are found in this schema, use its label
+            if (filteredForeignFields.every(field => schemaFields.includes(field.id))) {
+              foreignSchemaLabel = schema.label || schema.id.charAt(0).toUpperCase() + schema.id.slice(1);
+              break;
+            }
+          }
+
           const foreignFieldsContainer: TemplateField = {
             id: "foreignFields",
             type: "container",
-            label: "Ekstra Felt",
+            label: foreignSchemaLabel,
             layout: "vertical",
             children: filteredForeignFields,
           };

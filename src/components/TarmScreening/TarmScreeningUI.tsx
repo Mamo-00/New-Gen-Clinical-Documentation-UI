@@ -41,6 +41,22 @@ import enhancedDictionary from "../../data/dictionaries/enhanced-dictionary.json
 import { FieldValue } from "../Trees/utilities/treeTypes";
 import TreePagination from "../Trees/Pagination/TreePagination";
 import { MikroskopiPanelField } from "./interface/iMikroskopiPanelField";
+
+// Helper function to check if a field has the conditionalOn property
+const hasConditionalOn = (field: any): field is { conditionalOn: string } => {
+  return 'conditionalOn' in field && typeof field.conditionalOn === 'string';
+};
+
+// Helper function to check if a field has the conditionalValue property
+const hasConditionalValue = (field: any): field is { conditionalValue: any } => {
+  return 'conditionalValue' in field;
+};
+
+// Helper function to check if a field has the conditionalValue_not property
+const hasConditionalValueNot = (field: any): field is { conditionalValue_not: any } => {
+  return 'conditionalValue_not' in field;
+};
+
 // Define the structure of steps
 const steps = [
   {
@@ -258,28 +274,28 @@ export const TarmScreeningUI: React.FC<TarmScreeningUIProps> = ({
 
             // Check conditional visibility based on CURRENT state
             let shouldGenerate = true;
-            if (field.conditionalOn) {
+            if (hasConditionalOn(field)) {
               let dependentValue: FieldValue | undefined;
               Object.keys(blockData.fieldValues).forEach((pId) => {
                 // Check within current block's values
                 if (
-                  blockData.fieldValues[pId]?.[field.conditionalOn!] !==
+                  blockData.fieldValues[pId]?.[field.conditionalOn] !==
                   undefined
                 ) {
                   dependentValue =
-                    blockData.fieldValues[pId][field.conditionalOn!];
+                    blockData.fieldValues[pId][field.conditionalOn];
                 }
               });
 
               if (
-                "conditionalValue" in field &&
+                hasConditionalValue(field) &&
                 field.conditionalValue !== undefined &&
                 dependentValue !== field.conditionalValue
               ) {
                 shouldGenerate = false;
               }
               if (
-                "conditionalValue_not" in field &&
+                hasConditionalValueNot(field) &&
                 field.conditionalValue_not !== undefined &&
                 dependentValue === field.conditionalValue_not
               ) {
@@ -353,7 +369,7 @@ export const TarmScreeningUI: React.FC<TarmScreeningUIProps> = ({
                       textToAdd = evaluateConditionalTemplate(
                         field.generatesText,
                         currentValue,
-                        "unit" in field ? field.unit : undefined
+                        "unit" in field && typeof field.unit === "string" ? field.unit : undefined
                       );
                     } else {
                       textToAdd = field.generatesText.replace(

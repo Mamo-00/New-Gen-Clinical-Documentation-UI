@@ -1,1 +1,1 @@
-{{polyppType}} polypp, måler {{fragMeasurementA}} + {{fragMeasurementB}} + {{fragMeasurementC}} mm i #1 bit 5+ mm deles i #2.
+{{polyppType}} polypp, måler {{fragMeasurementA}} + {{fragMeasurementB}} + {{fragMeasurementC}} mm i #1.

@@ -1,0 +1,2 @@
+{{glassCount}} glass.
+1: Inneholder {{vevsbitCount}} mulig bredbasete polypper. 1: måler {{lengde1}} x {{bredde1}} x {{hoyde1}} mm, seriesnittes i #1. 2: måler {{lengde2}} x {{bredde2}} x {{hoyde2}} mm, deles og alt orienteres i #2. 
