@@ -1,7 +1,7 @@
 // src/utils/templates/placeholderRegistry.ts
 import { TemplateField } from "../../components/Trees/interfaces/iTemplateField";
 import { FieldValue } from "../../components/Trees/utilities/treeTypes";
-import { glass, hudbit, traadvev, polypp, tarmscreening } from "../../components/Trees/utilities/tree-schema";
+import { polypp, tarmscreening } from "../../components/Trees/utilities/tree-schema";
 import { flattenSchema } from "./flattenSchema";
 
 export interface PlaceholderDefinition {
@@ -39,7 +39,7 @@ export const placeholderRegistry: Record<string, PlaceholderDefinition> = {};
 // Initialize registry on module load
 (() => {
   // Add all schema fields to the registry
-  [glass, hudbit, traadvev, polypp, tarmscreening].forEach(schema => {
+  [polypp, tarmscreening].forEach(schema => {
     const flatSchema = flattenSchema(schema);
     Object.entries(flatSchema).forEach(([id, field]) => {
       // Skip container types as they're not placeholders
@@ -193,4 +193,24 @@ export function generateSchemaFromTemplate(templateText: string): TemplateField 
     layout: "vertical",
     children: containers
   };
+}
+
+// Helper function to filter a schema tree by allowed placeholder IDs
+export function filterSchemaByPlaceholders(schema: TemplateField, allowedIds: Set<string>): TemplateField | null {
+  if (schema.type === "container" && schema.children) {
+    // Recursively filter children
+    const filteredChildren = schema.children
+      .map(child => filterSchemaByPlaceholders(child, allowedIds))
+      .filter(Boolean) as TemplateField[];
+    if (filteredChildren.length === 0) {
+      return null;
+    }
+    return {
+      ...schema,
+      children: filteredChildren,
+    };
+  } else {
+    // Leaf node: include only if its id is in allowedIds
+    return allowedIds.has(schema.id) ? { ...schema } : null;
+  }
 }

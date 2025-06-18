@@ -1,3 +1,3 @@
-{{glassCount}} glass.
+{{countField}} glass.
 2 gryn i #1
-1: {{proveType}} fra {{lokalisasjon}}, {{lesjonsUtseende}}, {{storrelse}} mm. {{niceKlassifikasjon}}. {{komplett ? Komplett fjernet. : Ikke komplett fjernet.}} 
+1: {{proveType}} fra {{lokalisasjon}}, {{lesjonsUtseende}}, {{storrelse}} mm. {{niceKlassifikasjon}}. {{komplett}}. 

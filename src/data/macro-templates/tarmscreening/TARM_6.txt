@@ -1,2 +1,2 @@
-{{glassCount}} glass merket 1.
+{{countField}} glass merket 1.
 1: Stilket polypp. Polypphodet måler {{polyppHeadMeasurement}} mm, stilk måler {{stilkMeasurement}} mm. Deles med skalker i #1, stilkområde i #2. 

@@ -61,7 +61,6 @@ const TreePagination: React.FC<TreePaginationProps> = ({
     if (totalItems !== prevTotalItems) {
       // If items were added or removed, ensure current page is valid
       if (currentPage > totalPages) {
-        console.log(`TreePagination: Items changed from ${prevTotalItems} to ${totalItems}, adjusting page from ${currentPage} to ${totalPages}`);
         setCurrentPage(totalPages);
       }
       
@@ -73,7 +72,6 @@ const TreePagination: React.FC<TreePaginationProps> = ({
   // Page navigation handlers
   const handlePageChange = useCallback(
     (_event: React.ChangeEvent<unknown>, value: number) => {
-      console.log(`TreePagination: Page change from ${currentPage} to ${value}`);
       setCurrentPage(value);
     },
     [setCurrentPage, currentPage]
@@ -81,7 +79,6 @@ const TreePagination: React.FC<TreePaginationProps> = ({
 
   const handleTabChange = useCallback(
     (_event: React.SyntheticEvent, newValue: number) => {
-      console.log(`TreePagination: Tab change to ${newValue + 1}`);
       setCurrentPage(newValue + 1);
     },
     [setCurrentPage]
@@ -89,25 +86,21 @@ const TreePagination: React.FC<TreePaginationProps> = ({
 
   const goToNextItem = useCallback(() => {
     if (currentPage < totalPages) {
-      console.log(`TreePagination: Next item, page ${currentPage} -> ${currentPage + 1}`);
       setCurrentPage(currentPage + 1);
     }
   }, [currentPage, totalPages, setCurrentPage]);
 
   const goToPrevItem = useCallback(() => {
     if (currentPage > 1) {
-      console.log(`TreePagination: Previous item, page ${currentPage} -> ${currentPage - 1}`);
       setCurrentPage(currentPage - 1);
     }
   }, [currentPage, setCurrentPage]);
 
   const goToFirstItem = useCallback(() => {
-    console.log(`TreePagination: First item, page ${currentPage} -> 1`);
     setCurrentPage(1);
   }, [setCurrentPage, currentPage]);
 
   const goToLastItem = useCallback(() => {
-    console.log(`TreePagination: Last item, page ${currentPage} -> ${totalPages}`);
     setCurrentPage(totalPages);
   }, [totalPages, setCurrentPage, currentPage]);
 

@@ -1,2 +1,2 @@
-{{glassCount}} glass.
-Inneholder {{vevsbitCount}} mulige slimhinnebiter, måler {{storrelse}}+ {{storrelse2}} mm. Største deles og alt orienteres i # 1. 
+{{countField}} glass.
+Inneholder {{vevsbitCount}} mulige slimhinnebiter, måler {{storrelse}}+{{storrelse2}} mm. Største deles og alt orienteres i #1. 

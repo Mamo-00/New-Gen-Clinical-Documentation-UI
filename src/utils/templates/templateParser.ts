@@ -21,9 +21,6 @@ export function extractValuesFromTemplate(
   // Extract all placeholders along with their line context
   const placeholdersWithContext = extractPlaceholdersWithContext(template);
   
-  // If a schema is provided, flatten it:
-  console.log("updatetemp schema: ", schema);
-  
   const flatSchema = schema ? flattenSchema(schema) : {};
 
   // Process each placeholder with its context

@@ -15,11 +15,13 @@ import { selectUser, addCustomWord } from "../../features/userSlice";
 import TemplateMenu from "../TemplateMenu/TemplateMenu";
 import { MacroTemplate } from "../../utils/templates/macroTemplateService";
 import { useTemplate } from "../../context/TemplateContext";
+import { Compartment } from "@codemirror/state";
 
 interface EditorTextAreaProps {
   editorId: string;
 }
 
+const dynamicExtensionsCompartment = new Compartment();
 /**
  * EditorTextArea component that integrates CodeMirror with the template menu.
  *
@@ -138,7 +140,7 @@ const EditorTextArea: React.FC<EditorTextAreaProps> = ({ editorId }) => {
   const editorRef = useRef<EditorView | null>(null);
 
   // Get CodeMirror configuration with initial content
-  const { createEditorState } = useCodeMirrorConfig({
+  const { createEditorState, extensions } = useCodeMirrorConfig({
     content: initialContent.current,
     setContent,
     autoCompleteEnabled,
@@ -155,7 +157,9 @@ const EditorTextArea: React.FC<EditorTextAreaProps> = ({ editorId }) => {
     if (!containerRef.current || editorInitializedRef.current) return;
 
     const view = new EditorView({
-      state: createEditorState(),
+      state: createEditorState([
+        dynamicExtensionsCompartment.of(extensions)
+      ]),
       parent: containerRef.current,
     });
 
@@ -328,6 +332,14 @@ const EditorTextArea: React.FC<EditorTextAreaProps> = ({ editorId }) => {
       }
     }
   }, [content, editorId]);
+
+  useEffect(() => {
+    const view = editorRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: dynamicExtensionsCompartment.reconfigure(extensions),
+    });
+  }, [extensions]);
 
   const handleCloseContextMenu = () => {
     setContextMenu(null);

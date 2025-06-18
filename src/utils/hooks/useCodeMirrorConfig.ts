@@ -262,12 +262,12 @@ export const useCodeMirrorConfig = ({
     return extensions;
   }, [editorId, autoCompleteEnabled, spellCheckEnabled]);
 
-  const createEditorState = useCallback(() => {
+  const createEditorState = useCallback((extraExtensions: any[] = []) => {
     return EditorState.create({
       doc: content || "",
-      extensions: createExtensions,
+      extensions: [...extraExtensions],
     });
   }, [editorId]);
 
-  return { createEditorState };
+  return { createEditorState, extensions: createExtensions };
 };

@@ -29,17 +29,6 @@ export const TemplateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSelectedTemplate(updatedTemplate);
   };
   
-  // Add an effect to track template changes
-  /* useEffect(() => {
-    if (selectedTemplate) {
-      console.log("TemplateContext: Template changed", {
-        category: selectedTemplate.category,
-        textLength: selectedTemplate.text.length,
-        firstChars: selectedTemplate.text.substring(0, 50) + '...'
-      });
-    }
-  }, [selectedTemplate]); */
-  
   return (
     <TemplateContext.Provider value={{ selectedTemplate, setSelectedTemplate: setTemplate }}>
       {children}

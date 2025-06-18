@@ -1,3 +1,0 @@
-Trådformete vevsbiter fordelt på #1-#2
-1: {{segment1Count}} biter, {{segment1Measurement}} mm
-2: {{segment2Count}} biter, {{segment2Measurement}} mm

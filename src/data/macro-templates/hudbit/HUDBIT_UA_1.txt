@@ -1,1 +1,0 @@
-{{variant}}, {{primaryMeasurement}} mm. Uskarpt avgrenset lesjon/pigmentering ca {{lesjonMeasurement}} mm, {{segmentCount}} tverrsnitt i #1
