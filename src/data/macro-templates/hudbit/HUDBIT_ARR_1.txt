@@ -1,2 +1,0 @@
-{{variant}} {{primaryMeasurement}} mm med ca. {{arrMeasurement}}  mm arr.
-Tusjes som vist på tegning i henhold til trådmerking. Arrområdet tas ut i #1-#{{blokker}}.

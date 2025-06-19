@@ -24,6 +24,7 @@ import { useContainerWidth } from "../../utils/hooks/useContainerWidth";
 import { Save } from "@mui/icons-material";
 import { Undo } from "@mui/icons-material";
 import { Redo } from "@mui/icons-material";
+import FormatAlignLeftIcon from "@mui/icons-material/FormatAlignLeft";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PsychologyIcon from "@mui/icons-material/Psychology";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -40,7 +41,7 @@ interface MainToolbarProps {
 }
 
 const MainPage: React.FC = () => {
-  const { handleSave, handleUndo, handleRedo, getContent, setContent } = useEditor();
+  const { handleSave, handleUndo, handleRedo, handleFormat, getContent, setContent } = useEditor();
   const { containerRef, showButtonText } = useContainerWidth(375);
 
   const { selectedTemplate } = useTemplate();
@@ -239,6 +240,23 @@ const MainPage: React.FC = () => {
               </Tooltip>
             </>
           )}
+          <Tooltip title="Formater tekst">
+            <Button
+              onClick={() => handleFormat(editorId)}
+              variant="outlined"
+              startIcon={<FormatAlignLeftIcon />}
+              size="small"
+              sx={{
+                minWidth: showButtonText ? "auto" : "40px",
+                "& .MuiButton-startIcon": {
+                  mr: showButtonText ? 1 : 0,
+                  ml: showButtonText ? 0 : 0,
+                },
+              }}
+            >
+              {showButtonText ? "Formater" : ""}
+            </Button>
+          </Tooltip>
           <Tooltip title="Angre (Ctrl+Z)">
             <Button
               onClick={() => handleUndo(editorId)}
@@ -253,7 +271,7 @@ const MainPage: React.FC = () => {
                 },
               }}
             >
-              {showButtonText ? "Angre" : ""}
+              {showButtonText ? "" : ""}
             </Button>
           </Tooltip>
           <Tooltip title="Gjør om (Ctrl+Y)">
@@ -270,7 +288,7 @@ const MainPage: React.FC = () => {
                 },
               }}
             >
-              {showButtonText ? "Gjør om" : ""}
+              {showButtonText ? "" : ""}
             </Button>
           </Tooltip>
           <Button
@@ -520,9 +538,9 @@ const MainPage: React.FC = () => {
             <Box sx={{ p: 2, border: "1px solid grey", borderRadius: 1 }}>
               <Typography variant="body1">
                 Ingen mal er valgt. Vennligst velg en mal via "Maler" knappen på
-                toppen av siden for å vise treet. Du kan også skrive "template:" i 
-                makroskopisk skrivefelt for få opp templat som du kan velge mellom og 
-                vise treet på den måten.
+                toppen av siden for trevisning. Du kan også skrive "template:" i 
+                makroskopisk skrivefelt for få opp templat som du kan velge mellom for å 
+                oppnå trevisning.
               </Typography>
             </Box>
           )}

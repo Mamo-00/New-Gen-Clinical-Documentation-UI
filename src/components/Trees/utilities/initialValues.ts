@@ -41,7 +41,7 @@ export const initialGlassValues: Record<string, FieldValue> = {
     fragmented: false,
   };
   
-  // Initial values for polypp schema
+  // Initial values for polypp schema - updated to match simplified structure
   export const initialPolyppValues: Record<string, FieldValue> = {
     countField: 1,
     polyppType: "Lav, bredbaset",
@@ -52,6 +52,40 @@ export const initialGlassValues: Record<string, FieldValue> = {
     fragMeasurementA: 0,
     fragMeasurementB: 0,
     fragMeasurementC: 0,
-    fragmentSegmentation: "ingen",
-    additionalNotes: "",
+    glassCount: 1,
+    additionalNotes: ""
+  };
+
+  // Initial values for tarmscreening schema
+  export const initialTarmScreeningValues: Record<string, FieldValue> = {
+    glassCount: 1,
+    grynCount: 2,
+    vevsbitCount: 2,
+    proveType: "Polypp",
+    lokalisasjon: "Colon sigmoideum",
+    lesjonsUtseende: "Polypoid",
+    storrelse: 0,
+    storrelse2: 0,
+    lengde: 0,
+    bredde: 0,
+    hoyde: 0,
+    lengde1: 0,
+    bredde1: 0,
+    hoyde1: 0,
+    lengde2: 0,
+    bredde2: 0,
+    hoyde2: 0,
+    lengde3: 0,
+    bredde3: 0,
+    hoyde3: 0,
+    lengde4: 0,
+    bredde4: 0,
+    hoyde4: 0,
+    polyppHeadMeasurement: 0,
+    stilkMeasurement: 0,
+    fragMeasurementA: 0,
+    fragMeasurementB: 0, 
+    fragMeasurementC: 0,
+    niceKlassifikasjon: "NICE 2",
+    komplett: true,
   };

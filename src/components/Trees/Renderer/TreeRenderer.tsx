@@ -85,7 +85,6 @@ export const TreeRenderer: React.FC<TreeRendererProps> = ({
               label={schema.label}
               value={values[schema.id] ?? (schema.defaultValue || "")}
               onChange={(e) => {
-                console.log(`Text field changed: ${schema.id} = ${e.target.value}`);
                 onChange(schema.id, e.target.value);
               }}
               fullWidth
@@ -114,7 +113,6 @@ export const TreeRenderer: React.FC<TreeRendererProps> = ({
               slotProps={{ htmlInput: { min: 1 } }}
               onChange={(e) => {
                 const numValue = Number(e.target.value);
-                console.log(`Number field changed: ${schema.id} = ${numValue}`);
                 onChange(schema.id, numValue);
               }}
               size="small"
@@ -138,7 +136,6 @@ export const TreeRenderer: React.FC<TreeRendererProps> = ({
                 <Checkbox
                   checked={checked}
                   onChange={(e) => {
-                    console.log(`Checkbox changed: ${schema.id} = ${e.target.checked}`);
                     onChange(schema.id, e.target.checked);
                   }}
                 />
@@ -163,8 +160,6 @@ export const TreeRenderer: React.FC<TreeRendererProps> = ({
                 value={values[schema.id] ?? (schema.defaultValue || "")}
                 onChange={(e) => {
                   const selectedValue = e.target.value;
-                  console.log(`Dropdown changed: ${schema.id} = ${selectedValue}`);
-                  
                   // Special logic for traadvev distribution field
                   if (schema.id === "distribution" && selectedValue === "fordeles i #1 og #2") {
                     // Also update vevsbiterCount to 2 when distribution is "fordeles i #1 og #2"

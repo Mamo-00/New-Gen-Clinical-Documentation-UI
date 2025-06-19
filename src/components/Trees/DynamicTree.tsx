@@ -16,6 +16,7 @@ import { useEditor } from "../../context/EditorContext";
 import {
   extractPlaceholdersFromTemplate,
   generateSchemaFromTemplate,
+  filterSchemaByPlaceholders,
 } from "../../utils/templates/placeholderRegistry";
 import { flattenSchema } from "../../utils/templates/flattenSchema";
 import TreePagination from "./Pagination/TreePagination";
@@ -30,6 +31,7 @@ import {
   updateTreeItemCount,
 } from "../../features/treeSlice";
 import { store } from "../../app/store";
+import { polypp, tarmscreening } from "./utilities/tree-schema";
 
 // ========== UTILITY FUNCTIONS ==========
 
@@ -264,6 +266,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   const [count, setCount] = useState<number>(schema.countField || 1);
   const [hasCountFieldPlaceholder, setHasCountFieldPlaceholder] =
     useState<boolean>(false);
+  const [maxAllowedLines, setMaxAllowedLines] = useState<number>(1);
 
   // Reference to track previous page
   const prevPageRef = useRef<number>(currentPage);
@@ -276,6 +279,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
     newCount: number,
     initialValues: Record<string, FieldValue>
   ): string => {
+
     // Clean up initialValues to avoid duplicates
     const cleanedValues: Record<string, FieldValue> = {};
 
@@ -338,7 +342,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       if (newCount > maxLine) {
         // Use first line as model for better format consistency
         const modelLine =
-          parsedLines.find((l) => l!.num === 1) || parsedLines[0];
+          parsedLines.find((l) => l!.num === 1) || "";
 
         if (modelLine) {
           // Add new lines using the model line's format
@@ -420,6 +424,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
     } => {
       // Extract all placeholders from the template
       const allPlaceholders = extractPlaceholdersFromTemplate(templateText);
+      const allowedIds = new Set(allPlaceholders.filter((p) => p !== "countField"));
 
       // Get schema fields
       const flattenedSchema = flattenSchema(baseSchema);
@@ -431,7 +436,8 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
         .some((p) => !schemaFields.includes(p));
 
       // Create the appropriate schema
-      let schemaToUse = baseSchema;
+      let filteredSchema = filterSchemaByPlaceholders(baseSchema, allowedIds);
+      let schemaToUse = filteredSchema || baseSchema;
       let filteredForeignFields: TemplateField[] = []; // Initialize here to be in the outer scope
 
       if (hasForeignPlaceholders) {
@@ -452,26 +458,47 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
 
         // Create enhanced schema only if we have foreign fields
         if (filteredForeignFields.length > 0) {
+          // Find which schema the foreign fields belong to
+          const allSchemas = [polypp, tarmscreening];
+          let foreignSchemaLabel = "Ekstra Felt"; // Default fallback
+
+          // Check each schema to find which one contains these fields
+          for (const schema of allSchemas) {
+            const flatSchema = flattenSchema(schema);
+            const schemaFields = Object.keys(flatSchema);
+            
+            // If all foreign fields are found in this schema, use its label
+            if (filteredForeignFields.every(field => schemaFields.includes(field.id))) {
+              foreignSchemaLabel = schema.label || schema.id.charAt(0).toUpperCase() + schema.id.slice(1);
+              break;
+            }
+          }
+
           const foreignFieldsContainer: TemplateField = {
             id: "foreignFields",
             type: "container",
-            label: "Ekstra Felt",
+            label: foreignSchemaLabel,
             layout: "vertical",
             children: filteredForeignFields,
           };
 
+          // Add the foreign fields container to the filtered schema
+          const baseForChildren = filteredSchema || baseSchema;
           schemaToUse = {
-            ...baseSchema,
-            children: [...(baseSchema.children || []), foreignFieldsContainer],
+            ...baseForChildren,
+            children: [
+              ...(baseForChildren.children || []),
+              foreignFieldsContainer,
+            ],
           };
 
           setEnhancedSchema(schemaToUse);
         } else {
-          setEnhancedSchema(baseSchema);
+          setEnhancedSchema(schemaToUse);
         }
       } else {
-        // No foreign placeholders, use original schema
-        setEnhancedSchema(baseSchema);
+        // No foreign placeholders, use filtered schema
+        setEnhancedSchema(schemaToUse);
       }
       return { schemaToUse, filteredForeignFields };
     },
@@ -493,6 +520,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
    */
   const handleFieldChange = useCallback(
     (itemIndex: number, fieldId: string, value: FieldValue) => {
+
       // Get the tree item and its line number
       const treeItem = treeItems[itemIndex];
       if (!treeItem) {
@@ -603,85 +631,55 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
    */
   const handleCountChange = useCallback(
     (newCount: number) => {
-      if (newCount < 1) {
+      // Cap newCount to maxAllowedLines
+      const cappedCount = Math.max(1, Math.min(newCount, maxAllowedLines));
+      if (cappedCount < 1) {
         return;
       }
-
       // Store current count for page navigation
       const oldCount = treeItems.length;
-
-      // Update count state
-      setCount(newCount);
-
-      if (
-        hasCountFieldPlaceholder &&
-        selectedTemplate &&
-        selectedTemplate.originalText
-      ) {
+      setCount(cappedCount);
+      if (hasCountFieldPlaceholder && selectedTemplate && selectedTemplate.originalText) {
         // Use selectedTemplate text as base
         const currentTemplateText = selectedTemplate.text;
-
         // Get schema default values
         const { schemaToUse } = enhancedSchemaData;
-
         // Combine all initial values
         const allValues = collectAllTreeItemValues(
           treeItems,
-          newCount,
+          cappedCount,
           schemaToUse
         );
-
-        // Double-check that countField is set correctly
-        allValues.countField = newCount;
-
+        allValues.countField = cappedCount;
         // Adjust the template
         const adjustedTemplate = adjustTemplateForCount(
           currentTemplateText,
-          newCount,
+          cappedCount,
           allValues
         );
-
-        // Update the template in the UI
         setSelectedTemplate({
           ...selectedTemplate,
           text: adjustedTemplate,
         });
-
-        // Update the editor
         setEditorContent(editorId, adjustedTemplate);
-
         // Extract line numbers from the adjusted template
         const { lineNumbers: updatedLineNumbers } =
           detectAndExtractNumberedLines(adjustedTemplate);
-
-        // Update Redux state
         dispatch(
           updateTreeItemCount({
-            newCount,
+            newCount: cappedCount,
             initialValues: allValues,
             lineNumbers: updatedLineNumbers,
           })
         );
-
-        // Set appropriate page
-        if (newCount > oldCount) {
-          // Navigate to the newly added line
-          dispatch(setReduxCurrentPage(newCount));
-        } else if (newCount < oldCount && currentPage > newCount) {
-          // Go to the last valid page if current page is now invalid
-          dispatch(setReduxCurrentPage(newCount));
+        if (cappedCount > oldCount) {
+          dispatch(setReduxCurrentPage(cappedCount));
+        } else if (cappedCount < oldCount && currentPage > cappedCount) {
+          dispatch(setReduxCurrentPage(cappedCount));
         }
       }
     },
-    [
-      treeItems,
-      selectedTemplate,
-      setEditorContent,
-      editorId,
-      schema,
-      dispatch,
-      currentPage,
-    ]
+    [treeItems, selectedTemplate, setEditorContent, editorId, schema, dispatch, currentPage, maxAllowedLines]
   );
 
   // ========== MEMOIZED VALUES ==========
@@ -708,7 +706,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   const currentItemsData = useMemo(() => {
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-
     return {
       items: treeItems.slice(indexOfFirstItem, indexOfLastItem),
       indexOfFirstItem,
@@ -735,27 +732,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
     enhanceSchemaWithForeignPlaceholders,
   ]);
 
-  // ========== EFFECTS ==========
-  /**
-   * Ensure the enhanced schema is maintained consistently when navigating between pages.
-   * This prevents the Additional Fields section from disappearing.
-   */
-
-  /**
-   * Ensure the enhanced schema is maintained consistently when navigating between pages.
-   * This prevents the Additional Fields section from disappearing.
-   */
-  /*   useEffect(() => {
-    if (selectedTemplate && sourceTemplate) {
-      // Re-apply the enhanceSchemaWithForeignPlaceholders on currentPage change
-      // TODO debug again and figure out what to do
-      const { schemaToUse } = enhanceSchemaWithForeignPlaceholders(
-        selectedTemplate.text,
-        schema
-      );
-      setEnhancedSchema(schemaToUse);
-    }
-  }, [currentPage, sourceTemplate, schema]); */
+  // ========== EFFECTS ==========s
 
   /**
    * Initialize Redux store with editorId.
@@ -770,15 +747,13 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
   useEffect(() => {
     if (selectedTemplate?.originalText) {
       const originalText = selectedTemplate.originalText;
-
       // Check for countField
       const hasCountField = originalText.includes("{{countField}}");
       setHasCountFieldPlaceholder(hasCountField);
 
       // Get line numbers from template
-      const { lineNumbers, maxLineNumber } =
-        detectAndExtractNumberedLines(originalText);
-
+      const { lineNumbers, maxLineNumber } = detectAndExtractNumberedLines(originalText);
+      setMaxAllowedLines(Math.max(lineNumbers.length, 1));
       dispatch(setTemplateText(originalText));
 
       // If we have numbered lines with countField, set the count
@@ -897,7 +872,6 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
         ...selectedTemplate,
         text: initialTemplateText,
       });
-
       setEditorContent(editorId, initialTemplateText);
     }
 
@@ -937,7 +911,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
       // Clone the tree items to avoid direct state mutation
       const updatedItems = [...treeItems];
 
-      updatedItems.forEach((item, index) => {
+      updatedItems.forEach((item, _index) => {
         const lineNumber = item.lineNumber;
         if (lineNumber > 0) {
           // For each placeholder, ensure both base and indexed values exist
@@ -991,7 +965,7 @@ const DynamicTree: React.FC<DynamicTreeProps> = ({
             type="number"
             value={count}
             onChange={(e) => handleCountChange(parseInt(e.target.value) || 1)}
-            slotProps={{ htmlInput: { min: 1 } }}
+            slotProps={{ htmlInput: { min: 1, max: maxAllowedLines } }}
             size="small"
             sx={{ width: 120 }}
           />

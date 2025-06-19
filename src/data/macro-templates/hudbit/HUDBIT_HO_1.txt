@@ -1,1 +1,0 @@
-{{variant}}, {{primaryMeasurement}} mm. På hudoverflaten sees {{lesjonDescription}}, {{segmentCount}} tverrsnitt i #1.

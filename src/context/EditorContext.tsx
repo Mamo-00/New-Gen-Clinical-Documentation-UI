@@ -51,6 +51,7 @@ interface EditorContextType {
   handleSave: (editorId: string) => void;
   handleUndo: (editorId: string) => void;
   handleRedo: (editorId: string) => void;
+  handleFormat: (editorId: string) => void;
   handleResize: (event: any, { size }: any) => void;
   spellCheckEnabled: boolean;
   setSpellCheckEnabled: (enabled: boolean) => void;
@@ -264,6 +265,133 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, []);
 
+  const handleFormat = useCallback((editorId: string) => {
+    setEditorStates(prev => {
+      const currentState = prev[editorId];
+      if (!currentState) return prev;
+
+      // Get current content
+      let content = currentState.content;
+      
+      // Apply formatting rules
+      
+      // 1. Fix multiple consecutive spaces
+      content = content.replace(/[ ]{2,}/g, ' ');
+      
+      // 2. Fix spacing after punctuation
+      content = content.replace(/([.,:;!?])([^\s])/g, '$1 $2');
+      
+      // 3. Fix multiple empty lines
+      content = content.replace(/\n{3,}/g, '\n\n');
+      
+      // 4. Ensure proper line wrapping that respects word boundaries
+      const MAX_LINE_LENGTH = 85;
+      
+      // Special handling for numbered sections like "#1:" and medical terms
+      // First split into paragraphs to preserve paragraph structure
+      const paragraphs = content.split(/\n\s*\n/);
+      const formattedParagraphs = paragraphs.map(paragraph => {
+        // Process each paragraph
+        
+        // Identify if this is a numbered section (e.g., "#1:", "#2:")
+        const isNumberedSection = /^#\d+:/.test(paragraph);
+        let prefix = '';
+        
+        // If it's a numbered section, preserve the section marker
+        if (isNumberedSection) {
+          const match = paragraph.match(/^(#\d+:)\s*/);
+          if (match) {
+            prefix = match[1] + ' ';
+            paragraph = paragraph.substring(match[0].length);
+          }
+        }
+        
+        // Now format the paragraph content
+        // First replace existing newlines with spaces to reflow the text
+        const normalizedText = paragraph.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+        
+        if (normalizedText.length <= MAX_LINE_LENGTH && !isNumberedSection) {
+          return normalizedText;
+        }
+        
+        // Break into words and rebuild with proper wrapping
+        const words = normalizedText.split(' ');
+        const lines = [];
+        let currentLine = isNumberedSection ? prefix : ''; // Start with the prefix if it's a numbered section
+        
+        for (let i = 0; i < words.length; i++) {
+          const word = words[i];
+          
+          // Check if adding this word would exceed the line length
+          if (currentLine.length + word.length + 1 > MAX_LINE_LENGTH && currentLine.length > 0) {
+            lines.push(currentLine);
+            currentLine = '';
+          }
+          
+          // Add word to current line
+          if (currentLine.length === 0) {
+            currentLine = word;
+          } else {
+            currentLine += ' ' + word;
+          }
+          
+          // Handle special cases for medical terminology
+          // If the next word would make a medical term that shouldn't be split
+          if (i < words.length - 1) {
+            const nextWord = words[i+1];
+            
+            // If keeping them together would exceed line length, start a new line now
+            if (currentLine.length + nextWord.length + 1 > MAX_LINE_LENGTH) {
+              lines.push(currentLine);
+              currentLine = '';
+            }
+          }
+        }
+        
+        // Add the last line if there's anything left
+        if (currentLine.length > 0) {
+          lines.push(currentLine);
+        }
+        
+        return lines.join('\n');
+      });
+      
+      const formattedContent = formattedParagraphs.join('\n\n');
+      
+      // Update the editor view directly if it exists
+      if (editorRef.current) {
+        const view = editorRef.current;
+        // Store current selection
+        const selection = view.state.selection;
+        
+        // Update content with a transaction
+        view.dispatch({
+          changes: {
+            from: 0,
+            to: view.state.doc.length,
+            insert: formattedContent
+          },
+          // Try to preserve selection
+          selection: selection
+        });
+      }
+      
+      // Save history to enable undo
+      return {
+        ...prev,
+        [editorId]: {
+          content: formattedContent,
+          wordCount: formattedContent.split(/\s+/).filter(Boolean).length,
+          lastSaved: currentState.lastSaved,
+          history: {
+            past: [...currentState.history.past, currentState.content],
+            future: []
+          }
+        }
+      };
+    });
+  }, []);
+
   const setSpellCheckEnabledAndPersist = (enabled: boolean) => {
     setSpellCheckEnabled(enabled);
     if (user) {
@@ -274,27 +402,28 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({
   return (
     <EditorContext.Provider
       value={{
+        editorRef,
+        dimensions,
+        setDimensions,
         getContent,
         setContent,
         getWordCount,
         setWordCount,
         getLastSaved,
         setLastSaved,
-        dimensions,
-        setDimensions,
-        pinned,
-        spellCheckEnabled,
-        setSpellCheckEnabled: setSpellCheckEnabledAndPersist,
-        spellChecker,
-        setSpellChecker,
         autoCompleteEnabled,
         setAutoCompleteEnabled,
+        pinned,
         handlePin,
         handleSave,
         handleUndo,
         handleRedo,
+        handleFormat,
         handleResize,
-        editorRef,
+        spellCheckEnabled,
+        setSpellCheckEnabled: setSpellCheckEnabledAndPersist,
+        spellChecker,
+        setSpellChecker,
       }}
     >
       {children}

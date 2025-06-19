@@ -1,5 +1,5 @@
 // src/components/TemplateManager.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { useEditor } from "../../context/EditorContext";
 import { addTemplate, selectUser } from "../../features/userSlice";
@@ -17,10 +17,12 @@ import {
   Select,
   InputLabel,
   FormControl,
+  Autocomplete,
 } from "@mui/material";
 import { TextSnippetOutlined } from "@mui/icons-material";
 import { templates as availableTemplates, TemplateInfo } from "../../utils/templates/templateManifest";
 import { useTemplate, TemplateData } from "../../context/TemplateContext";
+import TreePagination from "../Trees/Pagination/TreePagination";
 
 const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText }) => {
   const dispatch = useAppDispatch();
@@ -37,6 +39,43 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
   // New: Target editor selection (optional)
   const [targetEditorId, setTargetEditorId] = useState("makroskopisk");
   const availableEditorIds = ["makroskopisk", "mikroskopisk", "konklusjon"];
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [stdPage, setStdPage] = useState(1);
+  const [userPage, setUserPage] = useState(1);
+  const itemsPerPage = 5;
+
+  // Reset page to 1 when filters/search change
+  useEffect(() => { setStdPage(1); }, [searchTerm, categoryFilter]);
+  useEffect(() => { setUserPage(1); }, [searchTerm]);
+
+  // Extract unique categories from availableTemplates
+  const categories = Array.from(new Set(availableTemplates.map(t => t.category))).filter(Boolean);
+
+  // Filter logic for standard templates
+  const filteredTemplates = availableTemplates.filter((temp) => {
+    const matchesCategory = !categoryFilter || temp.category === categoryFilter;
+    const matchesSearch = !searchTerm || temp.name.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  // Filter logic for user templates (optional: only by search)
+  const filteredUserTemplates = userTemplates.filter((temp) => {
+    const matchesSearch = !searchTerm || temp.name.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
+
+  const stdStartIdx = (stdPage - 1) * itemsPerPage;
+  const stdEndIdx = stdStartIdx + itemsPerPage;
+  const pagedStdTemplates = filteredTemplates.slice(stdStartIdx, stdEndIdx);
+
+  const userStartIdx = (userPage - 1) * itemsPerPage;
+  const userEndIdx = userStartIdx + itemsPerPage;
+  const pagedUserTemplates = filteredUserTemplates.slice(userStartIdx, userEndIdx);
+
+  const hasActiveFilters = !!searchTerm || !!categoryFilter;
+  const clearFilters = () => { setSearchTerm(""); setCategoryFilter(""); };
 
   const handleAddTemplate = () => {
     if (newTemplate.name && newTemplate.content && user) {
@@ -60,6 +99,7 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
         text: content,
         originalText: content, // Set the original content
         category: templateInfo.category,
+        timestamp: new Date().getTime(),
       };
       setSelectedTemplate(templateData);
       setEditorContent(targetEditorId, content);
@@ -72,7 +112,7 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
 
   // Optionally, for user-created templates:
   const insertTemplateIntoEditor = (templateContent: string, category: string) => {
-    setSelectedTemplate({ text: templateContent, category, originalText: templateContent });
+    setSelectedTemplate({ text: templateContent, category, originalText: templateContent, timestamp: new Date().getTime()});
     setEditorContent(targetEditorId, templateContent);
   };
 
@@ -93,26 +133,36 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
       <Dialog open={showTemplates} onClose={() => setShowTemplates(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Organiser Maler</DialogTitle>
         <DialogContent>
-          <TextField
-            label="Navn på mal"
-            value={newTemplate.name}
-            onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
-            fullWidth
-            sx={{ my: 1 }}
-          />
-          <TextField
-            label="Innhold"
-            value={newTemplate.content}
-            onChange={(e) => setNewTemplate({ ...newTemplate, content: e.target.value })}
-            fullWidth
-            multiline
-            rows={4}
-            sx={{ my: 1 }}
-          />
-          <Button onClick={handleAddTemplate} variant="outlined" sx={{ my: 1 }}>
-            Legg til mal
-          </Button>
-
+          {/* Search and filter controls */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+            <Autocomplete
+              freeSolo
+              options={availableTemplates.map(t => t.name)}
+              inputValue={searchTerm}
+              onInputChange={(_, value) => setSearchTerm(value)}
+              renderInput={(params) => (
+                <TextField {...params} label="Søk malnavn" variant="outlined" size="small" />
+              )}
+              sx={{ minWidth: 200, flex: 1 }}
+            />
+            <FormControl sx={{ minWidth: 180 }} size="small">
+              <InputLabel id="category-filter-label">Kategori</InputLabel>
+              <Select
+                labelId="category-filter-label"
+                value={categoryFilter}
+                label="Kategori"
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                <MenuItem value="">Alle</MenuItem>
+                {categories.map((cat) => (
+                  <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {hasActiveFilters && (
+              <Button onClick={clearFilters} variant="outlined" color="secondary" size="small">Fjern filter</Button>
+            )}
+          </Box>
           <FormControl fullWidth sx={{ my: 1 }}>
             <InputLabel id="target-editor-label">Velg Editor</InputLabel>
             <Select
@@ -128,38 +178,58 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
               ))}
             </Select>
           </FormControl>
-
-          <Box sx={{ maxHeight: "300px", overflowY: "auto", mt: 2 }}>
+          <Box sx={{ maxHeight: "400px", overflowY: "auto", mt: 2 }}>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>
               Standard Maler:
             </Typography>
-            {availableTemplates.map((temp, index) => (
-              <Box
-                key={index}
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 1,
-                  p: 1,
-                  border: "1px solid #ccc",
-                  borderRadius: 1,
-                }}
-              >
-                <Typography variant="body1">
-                  {temp.name} ({temp.category})
-                </Typography>
-                <Button onClick={() => fetchAndSetTemplate(temp)} size="small" variant="outlined">
-                  Velg
-                </Button>
-              </Box>
-            ))}
-            {userTemplates.length > 0 && (
+            {pagedStdTemplates.length === 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Ingen maler funnet. {hasActiveFilters && (
+                  <Button onClick={clearFilters} size="small" color="secondary">Fjern filter</Button>
+                )}
+              </Typography>
+            ) : (
+              pagedStdTemplates.map((temp, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mb: 1,
+                    p: 1,
+                    border: "1px solid #ccc",
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography variant="body1">
+                    {temp.name} ({temp.category})
+                  </Typography>
+                  <Button onClick={() => fetchAndSetTemplate(temp)} size="small" variant="outlined">
+                    Velg
+                  </Button>
+                </Box>
+              ))
+            )}
+            <TreePagination
+              totalItems={filteredTemplates.length}
+              currentPage={stdPage}
+              setCurrentPage={setStdPage}
+              itemsPerPage={itemsPerPage}
+              itemLabel="mal"
+              position="bottom"
+              displayInfo={{
+                start: filteredTemplates.length === 0 ? 0 : stdStartIdx + 1,
+                end: Math.min(stdEndIdx, filteredTemplates.length),
+                total: filteredTemplates.length,
+              }}
+            />
+            {pagedUserTemplates.length > 0 && (
               <>
                 <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
                   Egne Maler:
                 </Typography>
-                {userTemplates.map((template, index) => (
+                {pagedUserTemplates.map((template, index) => (
                   <Box
                     key={index}
                     sx={{
@@ -184,6 +254,19 @@ const TemplateManager: React.FC<{ showButtonText: boolean }> = ({ showButtonText
                     </Button>
                   </Box>
                 ))}
+                <TreePagination
+                  totalItems={filteredUserTemplates.length}
+                  currentPage={userPage}
+                  setCurrentPage={setUserPage}
+                  itemsPerPage={itemsPerPage}
+                  itemLabel="mal"
+                  position="bottom"
+                  displayInfo={{
+                    start: filteredUserTemplates.length === 0 ? 0 : userStartIdx + 1,
+                    end: Math.min(userEndIdx, filteredUserTemplates.length),
+                    total: filteredUserTemplates.length,
+                  }}
+                />
               </>
             )}
             {loadingTemplate && <CircularProgress size={24} />}

@@ -132,14 +132,12 @@ export const loginUserWithEmailPassword = createAsyncThunk(
           settings: { ...defaultSettings },
         };
         await setDoc(userRef, newUserData);
-        console.log("userdata:", newUserData);
         return newUserData;
         
       } else {
         return { uid: firebaseUser.uid, ...docSnap.data() } as UserData;
       }
     } catch (error: any) {
-      console.log("error in credential login: ", error.message);
       return rejectWithValue(error.message);
     }
   }

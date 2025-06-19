@@ -1,1 +1,0 @@
-{{variant}} {{primaryMeasurement}} mm, {{lesjonMeasurement}} mm lesjon. Tusjes, deles og fordeles som vist på tegning i henhold til trådmerking i #1-#{{segmentCount}}.

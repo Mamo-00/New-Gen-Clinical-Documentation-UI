@@ -1,8 +1,8 @@
 import { useCallback, useRef, useMemo } from "react";
-import { EditorState } from "@codemirror/state";
+import { EditorState, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, undo, redo } from "@codemirror/commands";
-import { autocompletion, Completion } from "@codemirror/autocomplete";
+import { autocompletion, Completion, completionKeymap } from "@codemirror/autocomplete";
 import { CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 import { linter, Diagnostic } from "@codemirror/lint";
 import { SpellCheckerService } from "../../services/SpellCheckerService";
@@ -220,7 +220,9 @@ export const useCodeMirrorConfig = ({
           closeOnBlur: false,
           aboveCursor: false,
           optionClass: option => option.type === 'snippet' ? 'cm-template-option' : ''
-        })
+        }),
+        // Add the completion keymap with high precedence to ensure arrow keys work
+        Prec.highest(keymap.of(completionKeymap))
       );
     }
     if (spellCheckEnabledRef.current && spellCheckerRef.current) {
@@ -260,12 +262,12 @@ export const useCodeMirrorConfig = ({
     return extensions;
   }, [editorId, autoCompleteEnabled, spellCheckEnabled]);
 
-  const createEditorState = useCallback(() => {
+  const createEditorState = useCallback((extraExtensions: any[] = []) => {
     return EditorState.create({
       doc: content || "",
-      extensions: createExtensions,
+      extensions: [...extraExtensions],
     });
   }, [editorId]);
 
-  return { createEditorState };
+  return { createEditorState, extensions: createExtensions };
 };

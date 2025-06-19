@@ -1,1 +1,0 @@
-{{variant}}, {{}} mm. {{lesjonDescription}} lesjon/pigmentering {{lesjonMeasurement}} mm, {{segmentCount}}  {{segmentationType}} i #1 

@@ -18,6 +18,21 @@ import { setMikroskopiFieldValueForCurrentBlock } from '../../features/mikroskop
 import { FieldValue } from '../Trees/utilities/treeTypes'; // Reuse type
 import { MikroskopiPanelField } from './interface/iMikroskopiPanelField';
 
+// Helper function to check if a field has the conditionalOn property
+const hasConditionalOn = (field: any): field is { conditionalOn: string } => {
+  return 'conditionalOn' in field && typeof field.conditionalOn === 'string';
+};
+
+// Helper function to check if a field has the conditionalValue property
+const hasConditionalValue = (field: any): field is { conditionalValue: any } => {
+  return 'conditionalValue' in field;
+};
+
+// Helper function to check if a field has the conditionalValue_not property
+const hasConditionalValueNot = (field: any): field is { conditionalValue_not: any } => {
+  return 'conditionalValue_not' in field;
+};
+
 interface RenderFieldProps {
     panelId: string;
     field: MikroskopiPanelField;
@@ -36,12 +51,12 @@ const RenderField: React.FC<RenderFieldProps> = React.memo(({
     // --- Conditional Rendering Logic ---
     // Moved outside the switch for clarity
     let shouldRender = true;
-    if (field.conditionalOn) {
+    if (hasConditionalOn(field)) {
         const dependentValue = allPanelValues[field.conditionalOn];
-        if (field.conditionalValue !== undefined && dependentValue !== field.conditionalValue) {
+        if (hasConditionalValue(field) && field.conditionalValue !== undefined && dependentValue !== field.conditionalValue) {
             shouldRender = false;
         }
-        if (field.conditionalValue_not !== undefined && dependentValue === field.conditionalValue_not) {
+        if (hasConditionalValueNot(field) && field.conditionalValue_not !== undefined && dependentValue === field.conditionalValue_not) {
            shouldRender = false;
         }
     }

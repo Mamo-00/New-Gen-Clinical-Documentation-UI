@@ -1,0 +1,2 @@
+{{countField}} glass merket 1.
+1: Fragmentert polypp, måler {{fragMeasurementA}} + {{fragMeasurementB}} + {{fragMeasurementC}} mm i #1 bit {{fragMeasurementA}}+ mm deles i #2. 

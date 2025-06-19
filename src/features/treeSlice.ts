@@ -68,19 +68,16 @@ export const treeSlice = createSlice({
         // Handle the base field first (non-indexed)
         let baseField = fieldId;
         let isIndexed = false;
-        console.log(`🔄 updateTreeItemValue: ${fieldId} = ${value}`);
         
         
         // If this is an indexed field (like "field_1"), extract the base field
         if (fieldId.includes('_')) {
           const parts = fieldId.split('_');
-          console.log("parts: ", parts);
           
           // Ensure we have a valid indexed field pattern
           if (parts.length >= 2 && !isNaN(Number(parts[parts.length-1]))) {
             baseField = parts[0];
             isIndexed = true;
-            console.log("baseField: ", baseField);
           }
         }
         
@@ -88,20 +85,17 @@ export const treeSlice = createSlice({
         
         // Update the main field in this item
         currentItem.values[fieldId] = value;
-        console.log("currentItem.values[fieldId]: ", currentItem.values[fieldId]);
         
         // For non-indexed fields, update the corresponding indexed field in THIS item
         if (!isIndexed && lineNumber > 0) {
           const indexedKey = `${baseField}_${lineNumber}`;
           currentItem.values[indexedKey] = value;
-          console.log("non-indexed currentItem.values[indexedKey]: ", currentItem.values[indexedKey]);
         }
         
         // For indexed fields, only update the base field when explicitly requested
         // or when it's the primary item being edited (where updateBaseField defaults to true)
         if (isIndexed && updateBaseField) {
           currentItem.values[baseField] = value;
-          console.log("indexed currentItem.values[baseField]: ", currentItem.values[baseField]);
         }
         
         // Mark as updated
@@ -163,18 +157,9 @@ export const treeSlice = createSlice({
         }
       });
       
-      console.log(`🔄 updateTreeItemCount: Starting with ${currentCount} items, updating to ${newCount}`);
-      
       // If increasing count, add new items
       if (newCount > currentCount) {
         const newItems: TreeItem[] = [];
-        
-        // Find the highest existing line number
-        const highestLineNumber = state.treeItems.length > 0 
-          ? Math.max(...state.treeItems.map(item => item.lineNumber))
-          : 0;
-          
-        console.log(`🔄 Highest existing line number: ${highestLineNumber}`);
         
         // Add new items with proper IDs and line numbers
         for (let i = currentCount + 1; i <= newCount; i++) {
@@ -223,7 +208,6 @@ export const treeSlice = createSlice({
         
         // Add the new items to the end
         state.treeItems = [...state.treeItems, ...newItems];
-        console.log(`🔄 Added ${newItems.length} new items with proper values`);
       } 
       // If decreasing count, remove items from the end and clean up remaining items
       else if (newCount < currentCount) {
@@ -268,10 +252,7 @@ export const treeSlice = createSlice({
         if (state.currentPage > totalPages && totalPages > 0) {
           state.currentPage = totalPages;
         }
-        
-        console.log(`🔄 Removed items, now have ${state.treeItems.length} items`);
       }
-      
       state.lastUpdated = Date.now();
     }
   },

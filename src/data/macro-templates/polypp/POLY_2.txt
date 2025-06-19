@@ -1,1 +1,1 @@
-{{polyppType}} {{overallMeasurement}} mm, {{distribution}}
+{{polyppType}} polypp {{overallMeasurement}} mm, {{distribution}}

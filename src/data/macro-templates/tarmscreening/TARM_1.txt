@@ -1,0 +1,3 @@
+{{countField}} glass.
+2 gryn i #1
+1: {{proveType}} fra {{lokalisasjon}}, {{lesjonsUtseende}}, {{storrelse}} mm. {{niceKlassifikasjon}}. {{komplett}}. 
