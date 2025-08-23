@@ -46,6 +46,16 @@ This system streamlines the process of creating medical reports for pathology sa
 - **Sample Information Display**: Patient and sample metadata
 - **Priority Indicators**: CITO and routine sample handling
 
+## 🎯 Core Functionalities
+
+• **Intelligent Medical Autocomplete**: Context-aware suggestions for medical terminology that adapts to the specific pathology field and user preferences, enhancing typing efficiency and terminology accuracy.
+
+• **Template-Based Report Generation**: Dynamic template system with keyword-triggered snippet insertion, allowing pathologists to quickly insert standardized text blocks and structured templates for different sample types.
+
+• **Guided Diagnostic Workflow**: Interactive step-by-step interface that guides pathologists through systematic diagnostic processes, automatically generating descriptive text based on structured selections and checkboxes - similar to a software installation wizard.
+
+• **AI-Powered Diagnosis Assistant**: Integrated language model module that analyzes macroscopic and microscopic descriptions to automatically generate diagnostic suggestions, helping pathologists formulate comprehensive and accurate conclusions.
+
 ## 🛠️ Technology Stack
 
 ### Frontend
