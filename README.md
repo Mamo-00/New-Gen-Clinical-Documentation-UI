@@ -2,6 +2,8 @@
 
 A comprehensive, AI-powered medical journal system designed specifically for pathology laboratories, with a focus on colorectal screening (tarmscreening) and polyp analysis. Built with React, TypeScript, and modern web technologies.
 
+The demo for it is live but you need **login credentials** to access it which you can find at the bottom of this documentation.
+
 ## 🏥 Overview
 
 This system streamlines the process of creating medical reports for pathology samples, particularly focusing on:
@@ -285,4 +287,4 @@ For support and questions:
 
 ---
 
-**Note**: This system is designed for medical professionals and should be used in accordance with local medical regulations and standards.
+**email og passord for innlogging**: tester@gmail.com | test123
