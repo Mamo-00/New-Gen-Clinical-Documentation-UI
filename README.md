@@ -287,4 +287,4 @@ For support and questions:
 
 ---
 
-**email og passord for innlogging**: tester@gmail.com | test123
+**email and passord**: tester@gmail.com | test123
