@@ -286,5 +286,5 @@ For support and questions:
 - Advanced template customization
 
 ---
-
+**Website URL**: https://medical-journal-system.web.app/
 **email and passord**: tester@gmail.com | test123
