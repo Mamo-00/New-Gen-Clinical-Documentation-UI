@@ -77,28 +77,57 @@ export class MultiProviderService implements ModelService {
   public async generateDiagnosis(makroText: string, mikroText: string): Promise<string> {
     const provider = this.providers.get(this.activeProvider);
     if (!provider) {
-      throw new Error(`Provider ${this.activeProvider} not found`);
+      throw new Error('Provider ' + this.activeProvider + ' not found');
     }
 
     if (!provider.isInitialized()) {
-      throw new Error(`Provider ${this.activeProvider} is not initialized`);
+      throw new Error('Provider ' + this.activeProvider + ' is not initialized');
     }
 
     // Create a detailed prompt for diagnosis generation
     const prompt = createDiagnosisPrompt(makroText, mikroText);
 
+    const t0 = performance.now();
+    const runId = 'dx-' + Math.random().toString(36).slice(2, 9);
+    console.groupCollapsed(
+      '%c[Diagnosis] ' + runId + ' | provider=' + this.activeProvider + ' | model=' + (this.config.modelId || '<default>'),
+      'color:#0ea5e9; font-weight:700',
+    );
+    console.log('makro chars :', (makroText || '').length);
+    console.log('mikro chars :', (mikroText || '').length);
+    console.log('prompt chars:', prompt.length);
+    console.log('started     :', new Date().toISOString());
+
     // Generate text using the active provider
     try {
-      return await provider.generateText(prompt, {
+      const result = await provider.generateText(prompt, {
         temperature: this.config.temperature,
-        maxTokens: this.config.maxTokens
+        maxTokens: this.config.maxTokens,
       });
-    } catch (error) {
-      console.error(`Error generating diagnosis with ${this.activeProvider}:`, error);
-      if (error instanceof Error) {
-        return `Feil ved generering av diagnose via ${this.activeProvider}: ${error.message}`;
+      const elapsed = Math.round(performance.now() - t0);
+      console.log(
+        '%cresult     : %c' + (result.startsWith('Feil:') ? 'ERROR' : 'OK'),
+        'color:',
+        'color:' + (result.startsWith('Feil:') ? '#dc2626' : '#16a34a') + '; font-weight:700;',
+      );
+      console.log('elapsed     :', elapsed, 'ms');
+      console.log('output chars:', (result || '').length);
+      if (result.startsWith('Feil:')) {
+        console.warn('error msg  :', result.slice(0, 300));
+      } else {
+        console.log('output preview:', result.slice(0, 300));
       }
-      return `Feil ved generering av diagnose via ${this.activeProvider}`;
+      return result;
+    } catch (error) {
+      const elapsed = Math.round(performance.now() - t0);
+      console.error('Exception in provider.generateText after', elapsed, 'ms :', error);
+      if (error instanceof Error) {
+        return 'Feil ved generering av diagnose via ' + this.activeProvider + ': ' + error.message;
+      }
+      return 'Feil ved generering av diagnose via ' + this.activeProvider;
+    } finally {
+      console.log('completed   :', new Date().toISOString(), '| total:', Math.round(performance.now() - t0), 'ms');
+      console.groupEnd();
     }
   }
 

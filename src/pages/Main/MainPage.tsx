@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   AccordionSummary,
   AccordionDetails,
@@ -34,6 +34,7 @@ import TarmScreeningUI from "../../components/TarmScreening/TarmScreeningUI";
 import AIConfigDialog from "../../components/Settings/AIConfigDialog";
 import { ModelServiceFactory, ModelServiceType, ModelService } from "../../services/ModelServiceFactory";
 import { AIProviderType } from "../../services/providers";
+import { withTimeout } from "../../services/providers/BaseAIProvider";
 
 interface MainToolbarProps {
   editorId: string;
@@ -49,6 +50,7 @@ const MainPage: React.FC = () => {
   // State for AI diagnosis generation
   const [isGeneratingDiagnosis, setIsGeneratingDiagnosis] = useState(false);
   const [diagnosisError, setDiagnosisError] = useState<string | null>(null);
+  const [diagnosisStatus, setDiagnosisStatus] = useState<string | null>(null);
   const [aiConfigOpen, setAiConfigOpen] = useState(false);
   const [inferenceMode, setInferenceMode] = useState<ModelServiceType>(
     localStorage.getItem('inference_mode') as ModelServiceType || ModelServiceType.REMOTE
@@ -56,6 +58,8 @@ const MainPage: React.FC = () => {
   const [modelService, setModelService] = useState<ModelService | null>(null);
   const [accordionExpanded, setAccordionExpanded] = useState(true);
   const [accordionExpandedMikro, setAccordionExpandedMikro] = useState(true);
+  const tickerRef = useRef<number | null>(null);
+  const startedAtRef = useRef<number | null>(null);
   
   // Initialize the model service
   useEffect(() => {
@@ -141,56 +145,122 @@ const MainPage: React.FC = () => {
 
   // Handler for generating diagnosis
   const handleGenerateDiagnosis = async () => {
+    // Safety: do nothing if already generating
+    if (isGeneratingDiagnosis) return;
+
     setIsGeneratingDiagnosis(true);
     setDiagnosisError(null);
-    
+    setDiagnosisStatus('Klargjør forespørsel...');
+    startedAtRef.current = Date.now();
+
+    // Ticker that updates the status text every 1 s so user can see we haven't hung
+    if (tickerRef.current != null) window.clearInterval(tickerRef.current);
+    tickerRef.current = window.setInterval(() => {
+      const t0 = startedAtRef.current;
+      if (t0 == null) return;
+      const sec = Math.floor((Date.now() - t0) / 1000);
+      const mm = String(Math.floor(sec / 60)).padStart(2, '0');
+      const ss = String(sec % 60).padStart(2, '0');
+      let stage = 'Venter pa svar...';
+      if (sec < 5) stage = 'Kobler til AI-tjeneste...';
+      else if (sec < 15) stage = 'Leverer prompt til modellen...';
+      else if (sec < 45) stage = 'Modellen tenker...';
+      else if (sec < 90) stage = 'Venter pa lang svartekst...';
+      else stage = 'Tar lang tid, fortsatt venter... (se Console for detaljer)';
+      setDiagnosisStatus(stage + ' (' + mm + ':' + ss + ')');
+    }, 1000);
+
     try {
       // Get the content from makroskopisk and mikroskopisk editors
       const makroskopiskText = getContent("makroskopisk");
       const mikroskopiskText = getContent("mikroskopisk");
-      
+
+      const inferMode = (localStorage.getItem('inference_mode') as ModelServiceType) || inferenceMode;
+      const provName = inferMode === ModelServiceType.DIRECT
+        ? (localStorage.getItem('ai_provider') as string | null)
+        : inferMode === ModelServiceType.LOCAL ? 'LOCAL (transformers.js)' : 'REMOTE (HuggingFace)';
+      const modelId = (() => {
+        if (inferMode === ModelServiceType.REMOTE) return localStorage.getItem('ai_model_id');
+        if (inferMode === ModelServiceType.LOCAL) return localStorage.getItem('ai_local_model_id');
+        if (inferMode === ModelServiceType.DIRECT) return localStorage.getItem('ai_provider_model_id');
+        return null;
+      })();
+
+      console.info(
+        '%c[Generate] ' +
+          'mode=' + inferMode +
+          (provName ? ', provider=' + provName : '') +
+          (modelId ? ', model=' + modelId : '') +
+          ', makro=' + (makroskopiskText || '').length + ' chars' +
+          ', mikro=' + (mikroskopiskText || '').length + ' chars',
+        'color:#0369a1; font-weight:700',
+      );
+
       // Check if we have content to work with
       if (!makroskopiskText && !mikroskopiskText) {
-        setDiagnosisError("Mangler beskrivelse: både makroskopisk og mikroskopisk beskrivelse er tomme.");
-        setIsGeneratingDiagnosis(false);
+        setDiagnosisError('Mangler beskrivelse: bade makroskopisk og mikroskopisk beskrivelse er tomme.');
         return;
       }
-      
+
       // Check if model service is initialized
       if (!modelService || !modelService.isInitialized()) {
-        setDiagnosisError(`AI-tjeneste er ikke konfigurert. Åpne AI-innstillinger for å konfigurere tjenesten.`);
-        setIsGeneratingDiagnosis(false);
+        setDiagnosisError('AI-tjeneste er ikke konfigurert. Apne AI-innstillinger for a konfigurere tjenesten.');
         return;
       }
-      
-      // Generate the diagnosis using the current model service
-      const diagnosis = await modelService.generateDiagnosis(makroskopiskText, mikroskopiskText);
-      
+
+      setDiagnosisStatus('Sender forespørsel... (00:00)');
+
+      // Ultimate safety: 5 minute timeout backstop at the UI layer so loading NEVER sticks forever,
+      // even if a provider layer (e.g. WebGPU compile) hangs the promise.
+      const diagnosis = await withTimeout<string>(
+        modelService.generateDiagnosis(makroskopiskText, mikroskopiskText),
+        5 * 60 * 1000,
+        'generateDiagnosis',
+      );
+
       // Handle error responses
       if (diagnosis.startsWith('Feil:')) {
         throw new Error(diagnosis);
       }
-      
+
       // Update the konklusjon editor with the generated text
       setContent("konklusjon", diagnosis);
-      
+      const totalSec = startedAtRef.current ? Math.floor((Date.now() - startedAtRef.current) / 1000) : 0;
+      setDiagnosisStatus('Ferdig! Brukte ' + totalSec + ' s. Output: ' + diagnosis.length + ' tegn.');
+
+      // Auto-clear status after 3 s
+      window.setTimeout(() => setDiagnosisStatus(null), 3000);
+
     } catch (error) {
       console.error("Error generating diagnosis:", error);
-      
+
       // Check if it's an API limit error
-      if (error instanceof Error && 
-          (error.message.includes('429') || 
-           error.message.includes('quota') || 
+      let msg: string;
+      if (error instanceof Error &&
+          (error.message.includes('429') ||
+           error.message.includes('quota') ||
            error.message.includes('limit'))) {
-        
         // Suggest using a different provider or local inference
-        setDiagnosisError("API-grense nådd. Prøv å bytte til en annen AI-leverandør eller lokal inferens i AI-innstillingene.");
+        msg = 'API-grense naadd (429 / quota / kreditter oppbrukt). Prov a bytte til en annen AI-leverandor eller lokal inferens i AI-innstillingene.';
+      } else if (error instanceof Error &&
+                 (error.name === 'AbortError' ||
+                  error.message.includes('timeout') ||
+                  error.message.includes('timed out') ||
+                  error.message.includes('Operation timed out'))) {
+        msg = 'Forespørselen gikk i timeout. Sjekk nettverk/tildeling, eller bytt til en raskere modell (f.eks. Groq / Gemini Flash) eller lokal inferens.';
       } else {
-        // General error handling
-        const errorMessage = error instanceof Error ? error.message : 'Det oppstod en feil ved generering av diagnose.';
-        setDiagnosisError(errorMessage);
+        msg = error instanceof Error ? error.message : 'Det oppstod en feil ved generering av diagnose.';
+        // Strip the inner "Feil ved generering..." double-wrapping if present
+        msg = msg.replace(/^Feil ved generering av diagnose[^:]*:\s*Feil:\s*/, 'Feil: ');
+        if (!msg.startsWith('Feil:') && !msg.includes('Feil ')) msg = 'Feil: ' + msg;
       }
+      setDiagnosisError(msg);
     } finally {
+      if (tickerRef.current != null) {
+        window.clearInterval(tickerRef.current);
+        tickerRef.current = null;
+      }
+      startedAtRef.current = null;
       setIsGeneratingDiagnosis(false);
     }
   };
@@ -576,7 +646,7 @@ const MainPage: React.FC = () => {
       {/* Error notification */}
       <Snackbar 
         open={diagnosisError !== null} 
-        autoHideDuration={6000} 
+        autoHideDuration={10000} 
         onClose={() => setDiagnosisError(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
@@ -586,6 +656,21 @@ const MainPage: React.FC = () => {
           sx={{ width: '100%' }}
         >
           {diagnosisError}
+        </Alert>
+      </Snackbar>
+
+      {/* Progress / status notification (info level) */}
+      <Snackbar
+        open={diagnosisStatus !== null && diagnosisError === null}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setDiagnosisStatus(null)}
+          severity={isGeneratingDiagnosis ? 'info' : 'success'}
+          icon={isGeneratingDiagnosis ? <CircularProgress size={14} color="inherit" /> : undefined}
+          sx={{ width: '100%' }}
+        >
+          {diagnosisStatus}
         </Alert>
       </Snackbar>
       

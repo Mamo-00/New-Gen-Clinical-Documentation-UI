@@ -1,6 +1,3 @@
-import { InferenceClient } from '@huggingface/inference';
-
-// Configuration types
 export interface AIServiceConfig {
   apiKey: string;
   modelId: string;
@@ -9,25 +6,51 @@ export interface AIServiceConfig {
   task?: 'text-generation' | 'conversational';
 }
 
-/**
- * Service for interacting with external AI models via APIs
- */
+interface TextGenerationPayload {
+  inputs: string;
+  parameters: {
+    temperature: number;
+    max_new_tokens: number;
+    return_full_text: boolean;
+    top_p: number;
+    top_k: number;
+    do_sample: boolean;
+  };
+}
+
+interface ChatCompletionPayload {
+  model: string;
+  messages: Array<{ role: string; content: string }>;
+  temperature: number;
+  max_tokens: number;
+}
+
+interface TextGenerationResponse {
+  generated_text: string;
+}
+
+interface ChatCompletionResponse {
+  choices: Array<{ message: { content: string } }>;
+}
+
+interface ErrorPayload {
+  error?: string;
+}
+
+const INFERENCE_ENDPOINT = 'https://router.huggingface.co/hf-inference';
+
 export class AIService {
   private static instance: AIService;
-  private hf: InferenceClient | null = null;
   private config: AIServiceConfig = {
-    apiKey: '', // Will be set by initialize
-    modelId: 'mistralai/Mistral-7B-Instruct-v0.2', // Default model
+    apiKey: '',
+    modelId: 'mistralai/Mistral-7B-Instruct-v0.2',
     temperature: 0.7,
     maxTokens: 500,
-    task: 'text-generation' // Default task
+    task: 'text-generation',
   };
 
   private constructor() {}
 
-  /**
-   * Get the singleton instance of AIService
-   */
   public static getInstance(): AIService {
     if (!AIService.instance) {
       AIService.instance = new AIService();
@@ -35,189 +58,220 @@ export class AIService {
     return AIService.instance;
   }
 
-  /**
-   * Initialize the service with API key and configuration
-   * @param config Configuration options including API key
-   */
   public initialize(config: Partial<AIServiceConfig>): void {
     this.config = { ...this.config, ...config };
     if (!this.config.apiKey) {
       console.warn('No API key provided to AIService. API calls will fail.');
-      return;
     }
-    this.hf = new InferenceClient(this.config.apiKey);
   }
 
-  /**
-   * Detect the appropriate task for a model based on model ID
-   * This is a simple heuristic and may need to be updated as more models are added
-   */
   private detectModelTask(modelId: string): 'text-generation' | 'conversational' {
-    // Models known to be conversational
     const conversationalModels = [
       'chat', 'Chat',
       'instruct', 'Instruct',
       'conversation', 'Conversation',
-      'dialogue', 'Dialogue'
+      'dialogue', 'Dialogue',
     ];
-    
-    // Check if the model ID contains any conversational indicators
+
     for (const indicator of conversationalModels) {
-      if (modelId.includes(indicator)) {
+      if (modelId.indexOf(indicator) !== -1) {
         return 'conversational';
       }
     }
-    
-    // Default to text-generation
+
     return 'text-generation';
   }
 
-  /**
-   * Generate a diagnosis based on makroskopisk and mikroskopisk descriptions
-   * @param makroText The makroskopisk beskrivelse text
-   * @param mikroText The mikroskopisk beskrivelse text
-   * @returns Promise with the generated diagnosis text
-   */
+  private buildHeaders(): Record<string, string> {
+    return {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + this.config.apiKey,
+    };
+  }
+
+  private async requestTextGeneration(prompt: string): Promise<string> {
+    const payload: TextGenerationPayload = {
+      inputs: prompt,
+      parameters: {
+        temperature: this.config.temperature ?? 0.7,
+        max_new_tokens: this.config.maxTokens ?? 500,
+        return_full_text: true,
+        top_p: 0.95,
+        top_k: 50,
+        do_sample: true,
+      },
+    };
+
+    const url = INFERENCE_ENDPOINT + '/models/' + encodeURIComponent(this.config.modelId);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: this.buildHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error('HTTP ' + res.status + ': ' + errorText);
+    }
+
+    const data = (await res.json()) as TextGenerationResponse | TextGenerationResponse[];
+    const text = Array.isArray(data) ? data[0]?.generated_text : data.generated_text;
+    return (text ?? '').trim();
+  }
+
+  private async requestChatCompletion(prompt: string): Promise<string> {
+    const systemContent =
+      'Du er en erfaren patolog som skal formulere presise, korte diagnoser basert pa patologiske undersokelser. ' +
+      'VIKTIG: Analyser noye de faktiske funnene i mikroskopisk og makroskopisk beskrivelse som blir presentert for deg. ' +
+      'Ikke gjenta eksempler, men formuler diagnoser som noyaktig reflekterer de spesifikke funnene i hver prove. ' +
+      'Grupper prover med lignende funn, men kun basert pa det som faktisk er beskrevet i materialet.';
+
+    const payload: ChatCompletionPayload = {
+      model: this.config.modelId,
+      messages: [
+        { role: 'system', content: systemContent },
+        { role: 'user', content: prompt },
+      ],
+      temperature: this.config.temperature ?? 0.7,
+      max_tokens: this.config.maxTokens ?? 500,
+    };
+
+    const url = INFERENCE_ENDPOINT + '/v1/chat/completions';
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: this.buildHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error('HTTP ' + res.status + ': ' + errorText);
+    }
+
+    const data = (await res.json()) as ChatCompletionResponse;
+    return data.choices?.[0]?.message?.content ?? '';
+  }
+
+  private buildDiagnosisPrompt(makroText: string, mikroText: string): string {
+    return (
+      'Du er en erfaren patolog som skal formulere en presis diagnose/konklusjon pa norsk basert pa makroskopiske og mikroskopiske beskrivelser.\n' +
+      '\n' +
+      'VIKTIG INSTRUKS: Analyser noye de faktiske funnene i den mikroskopiske og makroskopiske beskrivelsen nedenfor. Ikke gjenta eksempelet under, men lag en ny diagnose basert pa de reelle funnene i denne spesifikke proven.\n' +
+      '\n' +
+      'Konklusjonen skal:\n' +
+      '- Vare kort og konsis med fokus pa diagnosene\n' +
+      '- Noyaktig reflektere funnene som er beskrevet i teksten under\n' +
+      '- Gruppere prover med like funn (nummererte prover med samme diagnose)\n' +
+      '- Spesifisere vevtype, dysplasigrad, og lokalisasjon for hver gruppe av prover viss det er relevant\n' +
+      '\n' +
+      'Format for diagnosen:\n' +
+      '- Start med provenumrene fulgt av kolon, deretter diagnosen (f.eks. "1: Tubulaert adenom...")\n' +
+      '- Angi korrekt antall lesjoner og lokalisasjon\n' +
+      '- Inkluder kun funn som faktisk er beskrevet i proven - IKKE bruk eksemplet som mal\n' +
+      '\n' +
+      'MERK: Formatet under er kun et eksempel pa struktur. Diagnosene du gir MA være basert pa de faktiske funnene i den aktuelle proven.\n' +
+      '\n' +
+      'Eksempel pa format (IKKE KOPIER DISSE DIAGNOSENE):\n' +
+      '"1-4 og 6: Tubulare adenomer med lavgradig dysplasi, 5 stk., colon slyngereseksjon.\n' +
+      '5 : Lett polypoid tykktarmslimhinne med lette reaktive forandringer. Dysplasi ikke pavist.\n' +
+      '7: Lett polypoid tykktarmslimhinne med lette reaktive forandringer. Dysplasi pavist.\n' +
+      '8: Hyperplastisk polypp, colon slyngereseksjon.\n' +
+      '9: Hyperplastisk polypp, rectum slyngereseksjon."\n' +
+      '\n' +
+      'MAKROSKOPISK BESKRIVELSE:\n' +
+      (makroText || 'Ingen makroskopisk beskrivelse tilgjengelig.') + '\n' +
+      '\n' +
+      'MIKROSKOPISK BESKRIVELSE:\n' +
+      (mikroText || 'Ingen mikroskopisk beskrivelse tilgjengelig.') + '\n' +
+      '\n' +
+      'KONKLUSJON/DIAGNOSE (basert UTELUKKENDE pa de faktiske funnene i proven ovenfor):'
+    );
+  }
+
   public async generateDiagnosis(makroText: string, mikroText: string): Promise<string> {
-    if (!this.hf) {
+    if (!this.config.apiKey) {
       throw new Error('AIService not initialized with API key');
     }
 
-    // Create a detailed prompt with specific formatting instructions based on examples
-    const prompt = `Du er en erfaren patolog som skal formulere en presis diagnose/konklusjon på norsk basert på makroskopiske og mikroskopiske beskrivelser.
-
-VIKTIG INSTRUKS: Analyser nøye de faktiske funnene i den mikroskopiske og makroskopiske beskrivelsen nedenfor. Ikke gjenta eksempelet under, men lag en ny diagnose basert på de reelle funnene i denne spesifikke prøven.
-
-Konklusjonen skal:
-- Være kort og konsis med fokus på diagnosene
-- Nøyaktig reflektere funnene som er beskrevet i teksten under
-- Gruppere prøver med like funn (nummererte prøver med samme diagnose)
-- Spesifisere vevtype, dysplasigrad, og lokalisasjon for hver gruppe av prøver viss det er relevant
-
-Format for diagnosen:
-- Start med prøvenumrene fulgt av kolon, deretter diagnosen (f.eks. "1: Tubulært adenom...")
-- Angi korrekt antall lesjoner og lokalisasjon
-- Inkluder kun funn som faktisk er beskrevet i prøven - IKKE bruk eksemplet som mal
-
-MERK: Formatet under er kun et eksempel på struktur. Diagnosene du gir MÅ være basert på de faktiske funnene i den aktuelle prøven.
-
-Eksempel på format (IKKE KOPIER DISSE DIAGNOSENE):
-"1-4 og 6: Tubulære adenomer med lavgradig dysplasi, 5 stk., colon slyngereseksjon.
-5 : Lett polypoid tykktarmslimhinne med lette reaktive forandringer. Dysplasi ikke påvist.
-7: Lett polypoid tykktarmslimhinne med lette reaktive forandringer. Dysplasi påvist.
-8: Hyperplastisk polypp, colon slyngereseksjon.
-9: Hyperplastisk polypp, rectum slyngereseksjon."
-
-MAKROSKOPISK BESKRIVELSE:
-${makroText || 'Ingen makroskopisk beskrivelse tilgjengelig.'}
-
-MIKROSKOPISK BESKRIVELSE:
-${mikroText || 'Ingen mikroskopisk beskrivelse tilgjengelig.'}
-
-KONKLUSJON/DIAGNOSE (basert UTELUKKENDE på de faktiske funnene i prøven ovenfor):
-`;
+    const prompt = this.buildDiagnosisPrompt(makroText, mikroText);
 
     try {
-      console.log(`Generating diagnosis with model: ${this.config.modelId}`);
-      
-      // Determine the appropriate task for this model if not explicitly set
-      const task = this.config.task || this.detectModelTask(this.config.modelId);
-      console.log(`Using task: ${task} for model: ${this.config.modelId}`);
-      
-      let generatedText = '';
-      
-      if (task === 'text-generation') {
-        // Call the Hugging Face text generation API
-        const response = await this.hf.textGeneration({
-          model: this.config.modelId,
-          inputs: prompt,
-          parameters: {
-            temperature: this.config.temperature,
-            max_new_tokens: this.config.maxTokens,
-            return_full_text: true
+      const task = this.config.task ?? this.detectModelTask(this.config.modelId);
+      console.log('[AIService] Generating diagnosis with model: ' + this.config.modelId + ' (task=' + task + ')');
+
+      try {
+        if (task === 'conversational') {
+          return await this.requestChatCompletion(prompt);
+        }
+        return await this.requestTextGeneration(prompt);
+      } catch (primaryError) {
+        const message = primaryError instanceof Error ? primaryError.message : String(primaryError);
+        const requiresFallback: boolean =
+          message.indexOf('not supported for task') !== -1 ||
+          message.indexOf('400') !== -1 ||
+          message.indexOf('not found') !== -1 ||
+          message.indexOf('404') !== -1;
+
+        if (!requiresFallback) {
+          throw primaryError;
+        }
+
+        const fallbackTask: 'text-generation' | 'conversational' =
+          task === 'conversational' ? 'text-generation' : 'conversational';
+        console.warn('[AIService] Primary task "' + task + '" failed; retrying as "' + fallbackTask + '". Reason: ' + message);
+        if (fallbackTask === 'conversational') {
+          return await this.requestChatCompletion(prompt);
+        }
+        return await this.requestTextGeneration(prompt);
+      }
+    } catch (error) {
+      console.error('[AIService] Error generating diagnosis:', error);
+
+      if (error instanceof Error) {
+        const message = error.message;
+
+        if (message.indexOf('401') !== -1 || message.toLowerCase().indexOf('unauthorized') !== -1) {
+          return 'Feil: API-nokkel mangler eller er ugyldig. Vennligst sjekk innstillingene. (401 Unauthorized)';
+        }
+        if (message.indexOf('429') !== -1 || message.indexOf('rate limit') !== -1 || message.indexOf('quota') !== -1) {
+          return 'Feil: For mange foresporsler til AI-tjenesten. Vennligst prov igjen senere. (429 Too Many Requests)';
+        }
+        if (message.indexOf('503') !== -1 || message.indexOf('Service Unavailable') !== -1) {
+          return 'Feil: AI-tjenesten er midlertidig utilgjengelig. Vennligst prov igjen senere. (503 Service Unavailable)';
+        }
+        if (message.indexOf('404') !== -1 || message.indexOf('Not Found') !== -1) {
+          return 'Feil: Modellen "' + this.config.modelId + '" ble ikke funnet. Vennligst velg en annen modell. (404 Not Found)';
+        }
+        if (message.indexOf('403') !== -1 || message.indexOf('Forbidden') !== -1) {
+          return 'Feil: Ingen tilgang til modellen. Vennligst sjekk at API-nokkelen har riktige tilganger. (403 Forbidden)';
+        }
+        if (message.indexOf('CORS') !== -1 || message.indexOf('cors') !== -1) {
+          return 'Feil: CORS-problemer med AI-API-et. Prov a aktivere CORS-proxy i innstillingene.';
+        }
+
+        try {
+          const parsed = JSON.parse(message) as ErrorPayload;
+          if (parsed && parsed.error) {
+            return 'Feil: ' + parsed.error;
           }
-        });
-        
-        generatedText = response.generated_text.trim();
-      } else if (task === 'conversational') {
-        // Call the Hugging Face chat completion API for conversational models
-        const response = await this.hf.chatCompletion({
-          model: this.config.modelId,
-          messages: [
-            { role: 'system', content: 'Du er en erfaren patolog som skal formulere presise, korte diagnoser basert på patologiske undersøkelser. VIKTIG: Analyser nøye de faktiske funnene i mikroskopisk og makroskopisk beskrivelse som blir presentert for deg. Ikke gjenta eksempler, men formuler diagnoser som nøyaktig reflekterer de spesifikke funnene i hver prøve. Gruppér prøver med lignende funn, men kun basert på det som faktisk er beskrevet i materialet.' },
-            { role: 'user', content: prompt }
-          ],
-          temperature: this.config.temperature,
-          max_tokens: this.config.maxTokens
-        });
-        
-        generatedText = response.choices[0]?.message?.content || '';
+        } catch {
+          // JSON parsing failure is fine; fall through to generic message
+        }
+
+        return 'Feil: ' + message;
       }
 
-      // Return the generated text
-      return generatedText;
-      
-    } catch (error) {
-      console.error('Error generating diagnosis:', error);
-      
-      // Return a user-friendly error message
-      if (error instanceof Error) {
-        console.log('Error message:', error.message);
-        
-        if (error.message.includes('401')) {
-          return 'Feil: API-nøkkel mangler eller er ugyldig. Vennligst sjekk innstillingene. (401 Unauthorized)';
-        } else if (error.message.includes('429')) {
-          return 'Feil: For mange forespørsler til AI-tjenesten. Vennligst prøv igjen senere. (429 Too Many Requests)';
-        } else if (error.message.includes('503')) {
-          return 'Feil: AI-tjenesten er midlertidig utilgjengelig. Vennligst prøv igjen senere. (503 Service Unavailable)';
-        } else if (error.message.includes('404')) {
-          return `Feil: Modellen "${this.config.modelId}" ble ikke funnet. Vennligst velg en annen modell. (404 Not Found)`;
-        } else if (error.message.includes('403')) {
-          return 'Feil: Ingen tilgang til modellen. Vennligst sjekk at API-nøkkelen har riktige tilganger. (403 Forbidden)';
-        } else if (error.message.includes('not supported for task')) {
-          // Try the other task if the current one fails
-          try {
-            // Toggle the task
-            const newTask = this.config.task === 'text-generation' ? 'conversational' : 'text-generation';
-            console.log(`Switching to task: ${newTask} for model: ${this.config.modelId}`);
-            
-            // Update the config temporarily
-            const originalTask = this.config.task;
-            this.config.task = newTask;
-            
-            // Try again with the new task
-            const result = await this.generateDiagnosis(makroText, mikroText);
-            
-            // Restore the original task
-            this.config.task = originalTask;
-            
-            return result;
-          } catch (retryError) {
-            console.error('Error after task switch:', retryError);
-            return `Feil: Modellen "${this.config.modelId}" støtter ikke oppgaven. Vennligst velg en annen modell eller oppgavetype.`;
-          }
-        }
-        
-        return `Feil: ${error.message}`;
-      }
-      
-      return 'Feil ved generering av diagnose. Vennligst prøv igjen senere.';
+      return 'Feil ved generering av diagnose. Vennligst prov igjen senere.';
     }
   }
-  
-  /**
-   * Check if the service is properly initialized
-   */
+
   public isInitialized(): boolean {
-    return this.hf !== null;
+    return this.config.apiKey.length > 0;
   }
-  
-  /**
-   * Update the configuration
-   */
+
   public updateConfig(config: Partial<AIServiceConfig>): void {
     this.initialize(config);
   }
 }
 
-export default AIService; 
+export default AIService;
